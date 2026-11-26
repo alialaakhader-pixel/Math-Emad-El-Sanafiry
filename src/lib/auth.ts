@@ -1,182 +1,83 @@
 import "server-only";
-import { createHash, randomBytes, scryptSync, timingSafeEqual } from "node:crypto";
-import { cookies, headers } from "next/headers";
-import { and, eq, isNull } from "drizzle-orm";
+import { createHash, randomBytes, scrypt as scryptCallback, timingSafeEqual } from "node:crypto";
+import { promisify } from "node:util";
+import { cookies } from "next/headers";
+import { and, eq, gt, isNull, sql } from "drizzle-orm";
 import { db } from "@/db";
-import { activityLog, sessions, users } from "@/db/schema";
+import { authAttempts, sessions, subscriptions, users } from "@/db/schema";
 
-export const SESSION_COOKIE = "sanafyry_session";
-const SESSION_TTL_DAYS = 30;
+const scrypt = promisify(scryptCallback);
+const COOKIE = "emad_session";
+export const digest = (value: string) => createHash("sha256").update(value).digest("hex");
+export const makeToken = () => randomBytes(32).toString("base64url");
+export const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-/* ── password hashing (scrypt, no external dependency) ── */
-
-export function hashPassword(password: string): string {
+export async function hashPassword(password: string) {
   const salt = randomBytes(16).toString("hex");
-  const derived = scryptSync(password, salt, 64).toString("hex");
-  return `${salt}$${derived}`;
+  const hash = (await scrypt(password, salt, 64)) as Buffer;
+  return `${salt}:${hash.toString("hex")}`;
 }
 
-export function verifyPassword(password: string, stored: string): boolean {
-  const [salt, hash] = stored.split("$");
-  if (!salt || !hash) return false;
-  const derived = scryptSync(password, salt, 64);
-  const expected = Buffer.from(hash, "hex");
-  if (expected.length !== derived.length) return false;
-  return timingSafeEqual(derived, expected);
+export async function verifyPassword(password: string, stored: string | null) {
+  if (!stored) return false;
+  const [salt, hash] = stored.split(":");
+  if (!salt || !hash || hash.length !== 128) return false;
+  const actual = (await scrypt(password, salt, 64)) as Buffer;
+  return timingSafeEqual(actual, Buffer.from(hash, "hex"));
 }
 
-export function sha256(value: string): string {
-  return createHash("sha256").update(value).digest("hex");
+export async function createSession(userId: string, userAgent?: string | null) {
+  const token = makeToken();
+  const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+  await db.insert(sessions).values({ tokenHash: digest(token), userId, expiresAt, userAgent: userAgent?.slice(0, 300) });
+  (await cookies()).set(COOKIE, token, { httpOnly: true, secure: process.env.NODE_ENV === "production", sameSite: "lax", path: "/", expires: expiresAt });
 }
 
-/* ── session handling ── */
-
-export type SessionUser = {
-  id: string;
-  fullName: string;
-  email: string;
-  role: "teacher" | "student";
-  gradeId: number | null;
-};
-
-function deviceLabelFrom(ua: string | null): string {
-  if (!ua) return "جهاز غير معروف";
-  const s = ua.toLowerCase();
-  const os = s.includes("android")
-    ? "Android"
-    : s.includes("iphone") || s.includes("ipad")
-      ? "iOS"
-      : s.includes("mac")
-        ? "macOS"
-        : s.includes("win")
-          ? "Windows"
-          : s.includes("linux")
-            ? "Linux"
-            : "نظام غير معروف";
-  const browser = s.includes("edg")
-    ? "Edge"
-    : s.includes("chrome")
-      ? "Chrome"
-      : s.includes("firefox")
-        ? "Firefox"
-        : s.includes("safari")
-          ? "Safari"
-          : "متصفح";
-  return `${browser} · ${os}`;
+export async function endSession() {
+  const token = (await cookies()).get(COOKIE)?.value;
+  if (token) await db.delete(sessions).where(eq(sessions.tokenHash, digest(token)));
+  (await cookies()).delete(COOKIE);
 }
 
-export async function createSession(userId: string): Promise<void> {
-  const headerStore = await headers();
-  const ua = headerStore.get("user-agent");
-  const ip = headerStore.get("x-forwarded-for")?.split(",")[0]?.trim() ?? null;
-  const token = randomBytes(32).toString("hex");
-  await db.insert(sessions).values({
-    userId,
-    tokenHash: sha256(token),
-    userAgent: ua,
-    deviceLabel: deviceLabelFrom(ua),
-    ipAddress: ip,
-    lastSeenAt: new Date(),
-  });
-  const cookieStore = await cookies();
-  cookieStore.set(SESSION_COOKIE, token, {
-    httpOnly: true,
-    sameSite: "lax",
-    secure: process.env.NODE_ENV === "production",
-    path: "/",
-    maxAge: SESSION_TTL_DAYS * 24 * 60 * 60,
-  });
-}
-
-export async function destroyCurrentSession(): Promise<void> {
-  const cookieStore = await cookies();
-  const token = cookieStore.get(SESSION_COOKIE)?.value;
-  if (token) {
-    await db
-      .update(sessions)
-      .set({ revokedAt: new Date() })
-      .where(eq(sessions.tokenHash, sha256(token)));
-    cookieStore.delete(SESSION_COOKIE);
-  }
-}
-
-export async function revokeSession(sessionId: string, userId: string): Promise<void> {
-  await db
-    .update(sessions)
-      .set({ revokedAt: new Date() })
-    .where(and(eq(sessions.id, sessionId), eq(sessions.userId, userId)));
-}
-
-export async function getCurrentUser(): Promise<SessionUser | null> {
-  const cookieStore = await cookies();
-  const token = cookieStore.get(SESSION_COOKIE)?.value;
+export async function getCurrentUser() {
+  const token = (await cookies()).get(COOKIE)?.value;
   if (!token) return null;
+  const rows = await db.select({ id: users.id, email: users.email, name: users.name, role: users.role, gradeId: users.gradeId, tokenHash: sessions.tokenHash })
+    .from(sessions).innerJoin(users, eq(sessions.userId, users.id))
+    .where(and(eq(sessions.tokenHash, digest(token)), gt(sessions.expiresAt, new Date()))).limit(1);
+  return rows[0] ?? null;
+}
+export type CurrentUser = NonNullable<Awaited<ReturnType<typeof getCurrentUser>>>;
 
-  const rows = await db
-    .select({
-      id: users.id,
-      fullName: users.fullName,
-      email: users.email,
-      role: users.role,
-      gradeId: users.gradeId,
-      isActive: users.isActive,
-      revokedAt: sessions.revokedAt,
-    })
-    .from(sessions)
-    .innerJoin(users, eq(sessions.userId, users.id))
-    .where(and(eq(sessions.tokenHash, sha256(token)), isNull(sessions.revokedAt)))
-    .limit(1);
-
-  const row = rows[0];
-  if (!row || !row.isActive) return null;
-
-  void db
-    .update(sessions)
-    .set({ lastSeenAt: new Date() })
-    .where(eq(sessions.tokenHash, sha256(token)))
-    .catch(() => undefined);
-
-  return {
-    id: row.id,
-    fullName: row.fullName,
-    email: row.email,
-    role: row.role,
-    gradeId: row.gradeId,
-  };
+export async function canAccessGrade(user: CurrentUser, gradeId: string) {
+  if (user.role === "teacher") return true;
+  const rows = await db.select({ id: subscriptions.id }).from(subscriptions)
+    .where(and(eq(subscriptions.userId, user.id), eq(subscriptions.gradeId, gradeId), gt(subscriptions.endsAt, new Date()))).limit(1);
+  return rows.length > 0;
 }
 
-export async function requireUser(role?: "teacher" | "student"): Promise<SessionUser> {
-  const user = await getCurrentUser();
-  if (!user) throw new AuthError("يجب تسجيل الدخول أولاً", 401);
-  if (role && user.role !== role) throw new AuthError("لا تملك صلاحية الوصول إلى هذا المورد", 403);
-  return user;
+export function sameOrigin(request: Request) {
+  const origin = request.headers.get("origin");
+  return !origin || origin === new URL(request.url).origin;
 }
 
-export class AuthError extends Error {
-  status: number;
-  constructor(message: string, status: number) {
-    super(message);
-    this.status = status;
+export async function allowAttempt(rawKey: string, max: number, windowMs = 15 * 60 * 1000) {
+  const key = digest(rawKey);
+  const now = new Date();
+  const rows = await db.select().from(authAttempts).where(eq(authAttempts.key, key)).limit(1);
+  if (!rows[0]) {
+    await db.insert(authAttempts).values({ key, attempts: 1, windowStartedAt: now }).onConflictDoNothing();
+    return true;
   }
+  if (now.getTime() - rows[0].windowStartedAt.getTime() > windowMs) {
+    await db.update(authAttempts).set({ attempts: 1, windowStartedAt: now }).where(eq(authAttempts.key, key));
+    return true;
+  }
+  if (rows[0].attempts >= max) return false;
+  await db.update(authAttempts).set({ attempts: sql`${authAttempts.attempts} + 1` }).where(eq(authAttempts.key, key));
+  return true;
 }
 
-/* ── audit trail ── */
-
-export async function logActivity(
-  userId: string | null,
-  action: string,
-  meta?: Record<string, unknown> | null
-): Promise<void> {
-  await db
-    .insert(activityLog)
-    .values({ userId, action, meta: meta ?? null })
-    .catch(() => undefined);
-}
-
-/** Strong, human readable activation code: SAN-XXXX-XXXX-XXXX */
-export function generateActivationCode(): string {
-  const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-  const block = () =>
-    Array.from({ length: 4 }, () => alphabet[randomBytes(1)[0] % alphabet.length]).join("");
-  return `SAN-${block()}-${block()}-${block()}`;
+export function jsonError(message: string, status = 400) {
+  return Response.json({ error: message }, { status });
 }
