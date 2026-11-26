@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ArrowLeft, ArrowUpLeft, CheckCircle2, Eye, EyeOff, LockKeyhole } from "lucide-react";
 import SiteHeader from "@/components/SiteHeader";
 
@@ -40,6 +40,30 @@ export default function AuthClient({ grades, googleAvailable, mode: initialMode,
   </form>
   {(mode === "login" || mode === "register") && googleAvailable && <><div className="auth-divider">أو</div><a className="google-button" href="/api/auth/google"><span className="google-g">G</span> المتابعة باستخدام Google</a></>}
   <div className="auth-bottom">{mode === "register" ? <>لديك حساب بالفعل؟ <Link href="/auth?mode=login">سجّل الدخول</Link></> : mode === "login" ? <>ليس لديك حساب؟ <Link href="/auth?mode=register">أنشئ حساباً</Link></> : <Link href="/auth?mode=login">العودة إلى تسجيل الدخول</Link>}</div>
-  {(mode === "login" || mode === "register") && <div style={{ marginTop: 14, textAlign: "center", fontSize: 12, opacity: .6 }}><Link href="/teacher">دخول المدرس</Link></div>}
+  {(mode === "login" || mode === "register") && <TeacherInline/>}
   </div></main></div></div>;
+}
+
+function TeacherInline() {
+  const [open, setOpen] = useState(false);
+  useEffect(() => { if (new URLSearchParams(window.location.search).get("teacher") === "1") setOpen(true); }, []);
+  const [pw, setPw] = useState(""); const [err, setErr] = useState(""); const [busy, setBusy] = useState(false);
+  async function go(e: React.FormEvent) {
+    e.preventDefault(); setBusy(true); setErr("");
+    try {
+      const r = await fetch("/api/auth/teacher-login", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ password: pw }) });
+      const j = await r.json();
+      if (r.ok && j.ok) { window.location.href = j.redirect || "/admin"; return; }
+      setErr(j.error || "كلمة المرور غير صحيحة.");
+    } catch { setErr("تعذر الاتصال."); }
+    setBusy(false);
+  }
+  return <div style={{ marginTop: 14, textAlign: "center", fontSize: 12 }}>
+    {!open ? <button type="button" onClick={() => setOpen(true)} style={{ background: "none", border: 0, color: "inherit", opacity: .55, cursor: "pointer", fontSize: 12 }}>مدرس؟</button>
+      : <form onSubmit={go} style={{ display: "flex", gap: 6, justifyContent: "center" }}>
+        <input type="password" autoFocus value={pw} onChange={e => setPw(e.target.value)} placeholder="كلمة مرور المدرس" className="input" style={{ maxWidth: 180, padding: "6px 10px", fontSize: 13 }}/>
+        <button disabled={busy || !pw} className="inline-action">{busy ? "..." : "دخول"}</button>
+      </form>}
+    {err && <div style={{ color: "#ff8a8a", marginTop: 4 }}>{err}</div>}
+  </div>;
 }
