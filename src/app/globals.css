@@ -184,3 +184,7 @@ html[data-theme="light"] .calc-display{background:linear-gradient(180deg,#b7c7a6
 .calc-modal .solver-steps{background:rgba(255,255,255,.06)}
 @media (max-width:520px){.calc-keys button{height:44px}.calc-model{display:none}}
 .calc-input:focus,.calc-input:focus-visible{outline:none!important;box-shadow:none!important}
+
+.calc-keys{grid-template-columns:repeat(6,1fr)!important;gap:8px 6px!important}.calc-keys button{height:46px;font-size:13px;padding:0}.calc-keys .k-n{font-size:19px}
+.calc-consts{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:8px;max-height:210px;overflow:auto}.calc-consts button{display:flex;flex-direction:column;align-items:flex-start;gap:2px;padding:8px 10px;border-radius:10px;border:1px solid #4a5163;background:#2a2e3a;color:#dfe5f3;font-size:11px;text-align:right}.calc-consts b{color:#ffd9a8;font-size:11px;font-weight:600}
+@media(max-width:520px){.calc-keys button{height:44px;font-size:12px}.calc-keys .k-n{font-size:18px}}

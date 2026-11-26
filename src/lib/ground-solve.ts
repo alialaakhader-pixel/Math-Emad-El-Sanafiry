@@ -38,5 +38,5 @@ export function groundSolve(question: string): Solution | null {
 }
 export function formatSolution(sol: Solution, arabicDigits = false) {
   const t = (x: string) => arabicDigits ? toAr(x) : x;
-  return [`**${sol.title}**`, ...sol.steps.map((s, i) => `الخطوة ${i + 1}: ${t(s)}`), `**الحل النهائي:** ${sol.answers.map(t).join(" ، ")}`].join("\n\n");
+  return [sol.title, ...sol.steps.map((s, i) => `الخطوة ${i + 1}: ${t(s)}`), `الحل النهائي: ${sol.answers.map(t).join(" ، ")}`].join("\n\n");
 }

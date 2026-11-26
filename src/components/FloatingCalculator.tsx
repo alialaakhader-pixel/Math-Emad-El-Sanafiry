@@ -22,6 +22,12 @@ const UNITS: Record<string, { label: string; units: Record<string, [string, numb
   temp: { label: "الحرارة", units: { C: ["سيلزيوس", 1], F: ["فهرنهايت", 1], K: ["كلفن", 1] } },
 };
 
+const CONSTS: [string, string, string][] = [
+  ["تسارع الجاذبية g", "9.80665", "9.80665 m/s²"], ["سرعة الضوء c", "299792458", "3×10⁸ m/s"], ["ثابت بلانك h", "6.62607015e-34", "6.626×10⁻³⁴ J·s"],
+  ["ثابت الجذب G", "6.6743e-11", "6.674×10⁻¹¹"], ["شحنة الإلكترون e", "1.602176634e-19", "1.602×10⁻¹⁹ C"], ["كتلة الإلكترون", "9.1093837e-31", "9.109×10⁻³¹ kg"],
+  ["كتلة البروتون", "1.67262192e-27", "1.673×10⁻²⁷ kg"], ["عدد أفوجادرو", "6.02214076e23", "6.022×10²³"], ["ثابت الغاز R", "8.314462618", "8.314 J/mol·K"],
+  ["ثابت بولتزمان k", "1.380649e-23", "1.381×10⁻²³ J/K"], ["ثابت كولوم k", "8.9875517923e9", "8.988×10⁹"], ["سماحية الفراغ ε₀", "8.8541878128e-12", "8.854×10⁻¹² F/m"],
+];
 const fmt = (n: unknown): string => {
   if (typeof n === "number") { if (!Number.isFinite(n)) return String(n); const r = Math.abs(n) < 1e-12 ? 0 : n; return String(Number(r.toPrecision(12))); }
   if (n && typeof n === "object" && "toString" in n) return String(n);
@@ -35,6 +41,9 @@ export default function FloatingCalculator() {
   const [expr, setExpr] = useState("");
   const [mode, setMode] = useState<Mode>("DEG");
   const [shift, setShift] = useState(false);
+  const [hyp, setHyp] = useState(false);
+  const [frac, setFrac] = useState(false);
+  const [showConst, setShowConst] = useState(false);
   const [history, setHistory] = useState<{ e: string; r: string }[]>([]);
   const [showHist, setShowHist] = useState(false);
   const [ans, setAns] = useState("0");
@@ -57,7 +66,7 @@ export default function FloatingCalculator() {
       sin: (x: number) => math.sin(rad(x)), cos: (x: number) => math.cos(rad(x)), tan: (x: number) => math.tan(rad(x)),
       asin: (x: number) => back(Number(math.asin(x))), acos: (x: number) => back(Number(math.acos(x))), atan: (x: number) => back(Number(math.atan(x))),
       sec: (x: number) => 1 / Math.cos(rad(x)), csc: (x: number) => 1 / Math.sin(rad(x)), cot: (x: number) => 1 / Math.tan(rad(x)),
-      ln: (x: number) => Math.log(x), Ans: Number(ans) || 0,
+      ln: (x: number) => Math.log(x), sinh: (x: number) => Math.sinh(x), cosh: (x: number) => Math.cosh(x), tanh: (x: number) => Math.tanh(x), asinh: (x: number) => Math.asinh(x), acosh: (x: number) => Math.acosh(x), atanh: (x: number) => Math.atanh(x), nthRoot: (x: number, n: number) => Number(math.nthRoot(x, n)), Ans: Number(ans) || 0,
       nPr: (n: number, r: number) => math.permutations(n, r), nCr: (n: number, r: number) => math.combinations(n, r),
       rand: () => Math.random(),
     };
@@ -73,6 +82,7 @@ export default function FloatingCalculator() {
 
   const preview = useMemo(() => { if (!expr.trim() || !math) return ""; try { const r = run(expr); if (typeof r === "function" || r === undefined) return ""; return fmt(r); } catch { return ""; } }, [expr, run, math]);
 
+  const asFrac = (v: string) => { if (!frac || !math) return v; const n = Number(v); if (!Number.isFinite(n) || Number.isInteger(n)) return v; try { const g = math.fraction(n) as unknown as { n: number | bigint; d: number | bigint; s: number | bigint }; const f = { n: Number(g.n), d: Number(g.d), s: Number(g.s) }; if (f.d > 100000 || Math.abs(f.n / f.d - n) > 1e-9 * Math.max(1, Math.abs(n))) return v; const w = Math.floor(f.n / f.d), r = f.n % f.d; return (f.s < 0 ? "-" : "") + (w > 0 && r > 0 ? w + " " + r + "/" + f.d : f.n + "/" + f.d); } catch { return v; } };
   const show = (v: string) => (arabicDigits ? v.replace(/\d/g, d => "٠١٢٣٤٥٦٧٨٩"[Number(d)]) : v);
 
   function equals() {
@@ -84,22 +94,26 @@ export default function FloatingCalculator() {
       setHistory(next); localStorage.setItem("calc-history", JSON.stringify(next)); setAns(out); setExpr(out);
     } catch (e) { setErr(e instanceof Error ? e.message.slice(0, 120) : "خطأ في التعبير."); }
   }
-  const put = (s: string) => { setErr(""); const el = inputRef.current; if (el && document.activeElement === el) { const a = el.selectionStart ?? expr.length, b = el.selectionEnd ?? expr.length; const n = expr.slice(0, a) + s + expr.slice(b); setExpr(n); setTimeout(() => { el.focus(); el.setSelectionRange(a + s.length, a + s.length); }, 0); } else setExpr(expr + s); };
+  const caret = useRef<number | null>(null);
+  const put = (str: string) => { setErr(""); const el = inputRef.current; const a = caret.current ?? expr.length; const b = el && el.selectionStart !== el.selectionEnd && document.activeElement === el ? (el.selectionEnd ?? a) : a; const st = el && document.activeElement === el ? (el.selectionStart ?? a) : a; const n = expr.slice(0, st) + str + expr.slice(b); setExpr(n); caret.current = st + str.length; setTimeout(() => { if (el) { el.setSelectionRange(st + str.length, st + str.length); } }, 0); };
+  const moveCaret = (d: number) => { const el = inputRef.current; const c = Math.max(0, Math.min(expr.length, (caret.current ?? expr.length) + d)); caret.current = c; if (el) { el.setSelectionRange(c, c); } };
+  const backspace = () => { const c = caret.current ?? expr.length; if (c <= 0) return; setExpr(expr.slice(0, c - 1) + expr.slice(c)); caret.current = c - 1; setTimeout(() => inputRef.current?.setSelectionRange(c - 1, c - 1), 0); };
   const memApply = (k: string) => { const v = Number(preview || expr) || 0; const n = k === "MC" ? 0 : k === "M+" ? memory + v : k === "M-" ? memory - v : memory; if (k === "MR") put(String(memory)); else { setMemory(n); localStorage.setItem("calc-mem", String(n)); } };
 
+  const h = hyp ? "h" : "";
   const keys: [string, string, string?][] = [
-    [shift ? "asin(" : "sin(", shift ? "sin⁻¹" : "sin"], [shift ? "acos(" : "cos(", shift ? "cos⁻¹" : "cos"], [shift ? "atan(" : "tan(", shift ? "tan⁻¹" : "tan"], ["(", "("], [")", ")"],
-    [shift ? "10^(" : "log10(", shift ? "10ˣ" : "log"], [shift ? "e^(" : "ln(", shift ? "eˣ" : "ln"], [shift ? "cbrt(" : "sqrt(", shift ? "∛" : "√"], ["^", "xʸ"], ["^2", "x²"],
-    ["7", "7", "n"], ["8", "8", "n"], ["9", "9", "n"], ["DEL", "⌫", "op"], ["AC", "AC", "op"],
-    ["4", "4", "n"], ["5", "5", "n"], ["6", "6", "n"], ["*", "×", "op"], ["/", "÷", "op"],
-    ["1", "1", "n"], ["2", "2", "n"], ["3", "3", "n"], ["+", "+", "op"], ["-", "−", "op"],
-    ["0", "0", "n"], [".", ".", "n"], ["pi", "π"], ["e", "e"], ["=", "=", "eq"],
-    ["abs(", "|x|"], ["!", "n!"], ["%", "%"], ["nCr(", "nCr"], ["nPr(", "nPr"],
-    ["Ans", "Ans"], ["1/(", "1/x"], ["mod", "mod"], ["rand()", "Rand"], [",", ","],
+    [shift ? `asin${h}(` : `sin${h}(`, shift ? `sin⁻¹` : "sin" + h], [shift ? `acos${h}(` : `cos${h}(`, shift ? "cos⁻¹" : "cos" + h], [shift ? `atan${h}(` : `tan${h}(`, shift ? "tan⁻¹" : "tan" + h], [shift ? "10^(" : "log10(", shift ? "10ˣ" : "log"], [shift ? "e^(" : "ln(", shift ? "eˣ" : "ln"], [shift ? "cbrt(" : "sqrt(", shift ? "∛" : "√"],
+    [shift ? "^3" : "^2", shift ? "x³" : "x²"], ["^", "xʸ"], ["^(-1)", "x⁻¹"], ["!", "n!"], ["abs(", "|x|"], ["nthRoot(", "ʸ√x"],
+    ["(", "("], [")", ")"], ["e", "×10ˣ"], ["pi", "π"], ["Ans", "Ans"], ["HYP", "hyp"],
+    ["7", "7", "n"], ["8", "8", "n"], ["9", "9", "n"], ["DEL", "⌫", "op"], ["AC", "AC", "op"], ["SD", "S⇔D"],
+    ["4", "4", "n"], ["5", "5", "n"], ["6", "6", "n"], ["*", "×", "op"], ["/", "÷", "op"], ["nCr(", "nCr"],
+    ["1", "1", "n"], ["2", "2", "n"], ["3", "3", "n"], ["+", "+", "op"], ["-", "−", "op"], ["nPr(", "nPr"],
+    ["0", "0", "n"], [".", ".", "n"], ["L", "◀"], ["R", "▶"], ["%", "%"], ["=", "=", "eq"],
   ];
   const press = (k: string) => {
-    if (k === "AC") { setExpr(""); setErr(""); } else if (k === "DEL") setExpr(expr.slice(0, -1)); else if (k === "=") equals();
-    else if (k === "mod") put(" mod "); else put(k);
+    if (k === "AC") { setExpr(""); setErr(""); caret.current = 0; } else if (k === "DEL") backspace(); else if (k === "=") equals();
+    else if (k === "HYP") setHyp(!hyp); else if (k === "SD") setFrac(!frac); else if (k === "L") moveCaret(-1); else if (k === "R") moveCaret(1);
+    else put(k);
   };
 
   return <>
@@ -111,16 +125,18 @@ export default function FloatingCalculator() {
         {!math && <div className="calc-loading">جارٍ تحميل محرك الحساب...</div>}
         {math && tab === "sci" && <>
           <div className="calc-display" dir="ltr">
-            <input ref={inputRef} className="calc-input" value={expr} onChange={e => { setExpr(e.target.value); setErr(""); }} onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); equals(); } }} placeholder="0" inputMode="text" aria-label="التعبير الرياضي" spellCheck={false}/>
-            <div className={`calc-result ${err ? "err" : ""}`}>{err || (preview ? "= " + show(preview) : "\u00a0")}</div>
+            <input ref={inputRef} className="calc-input" onSelect={e => { caret.current = e.currentTarget.selectionStart; }} value={expr} onChange={e => { setExpr(e.target.value); setErr(""); }} onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); equals(); } }} placeholder="0" inputMode="none" aria-label="التعبير الرياضي" spellCheck={false}/>
+            <div className={`calc-result ${err ? "err" : ""}`}>{err || (preview ? "= " + show(asFrac(preview)) : "\u00a0")}</div>
           </div>
           <div className="calc-toolbar">
             <button type="button" className={shift ? "on" : ""} onClick={() => setShift(!shift)}>SHIFT</button>
             <button type="button" onClick={() => setMode(mode === "DEG" ? "RAD" : mode === "RAD" ? "GRAD" : "DEG")}>{mode}</button>
             <button type="button" className={arabicDigits ? "on" : ""} onClick={() => setArabicDigits(!arabicDigits)}>١٢٣</button>
             {["MC", "MR", "M+", "M-"].map(k => <button type="button" key={k} onClick={() => memApply(k)}>{k}</button>)}
+            <button type="button" className={showConst ? "on" : ""} onClick={() => setShowConst(!showConst)}>ثوابت</button>
             <button type="button" className={showHist ? "on" : ""} onClick={() => setShowHist(!showHist)} aria-label="السجل"><History size={14}/></button>
           </div>
+          {showConst && <div className="calc-consts" dir="rtl">{CONSTS.map(([n, v, sym]) => <button type="button" key={n} onClick={() => { put(v); setShowConst(false); }}><span>{n}</span><b dir="ltr">{sym}</b></button>)}</div>}
           {memory !== 0 && <div className="calc-mem">M = {show(fmt(memory))}</div>}
           {showHist ? <div className="calc-history">{history.length ? <>{history.map((h, i) => <button type="button" key={i} onClick={() => { setExpr(h.r); setShowHist(false); }}><span dir="ltr">{h.e}</span><b dir="ltr">= {show(h.r)}</b></button>)}<button type="button" className="calc-clear" onClick={() => { setHistory([]); localStorage.removeItem("calc-history"); }}><Trash2 size={13}/> مسح السجل</button></> : <p className="small">لا توجد عمليات سابقة.</p>}</div>
             : <div className="calc-keys">{keys.map(([k, l, c], i) => <button type="button" key={i} className={`k-${c || "fn"}`} onClick={() => press(k)}>{k === "DEL" ? <Delete size={16}/> : show(l)}</button>)}</div>}
