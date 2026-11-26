@@ -195,3 +195,10 @@ html[data-theme="light"] .calc-display{background:linear-gradient(180deg,#b7c7a6
 @media(max-width:600px){.teacher-pill{padding:7px 11px;font-size:11px}}
 @media(max-width:600px){.brand-copy small{display:none}.brand-copy strong{font-size:14px;white-space:nowrap}.header-inner{gap:8px}.header-inner .brand{min-width:0;flex:0 1 auto}.teacher-pill{padding:6px 9px;font-size:11px}}
 html,body{overflow-x:clip}
+.calc-keys.casio{grid-template-columns:repeat(6,1fr);gap:5px 4px}.calc-keys.casio button{position:relative;height:50px;padding-top:12px;font-size:15px;display:grid;place-items:center}
+.calc-keys.casio .k-sh{position:absolute;top:2px;left:0;right:0;text-align:center;font-style:normal;font-size:9px;color:#ffc94d;line-height:1;pointer-events:none}
+.calc-keys.casio .k-mod{background:#f5b324;color:#2a1a00;font-weight:800}.calc-keys.casio button:nth-child(2){background:#7f6bdc;color:#fff}.calc-keys.casio .k-nav{background:#3b4150}.calc-keys.casio .k-ac,.calc-keys.casio .k-del{background:#e8873a;color:#201000;font-weight:800}
+.calc-keys.casio .shifted{box-shadow:0 0 0 2px #ffc94d inset}.calc-keys.casio .shifted span{color:#ffc94d}
+.calc-status{display:flex;gap:6px;font-size:10px;color:#9aa6c4;min-height:14px;letter-spacing:.5px}.calc-status b{background:#f5b324;color:#2a1a00;padding:0 5px;border-radius:4px}
+.calc-quick button{padding:4px 9px;font-size:12px}
+@media(max-width:520px){.calc-keys.casio button{height:44px;font-size:13px;padding-top:11px}.calc-keys.casio .k-sh{font-size:8px}}

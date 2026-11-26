@@ -217,3 +217,21 @@ export const lectureUnlocks = pgTable("lecture_unlocks", {
   grantedBy: uuid("granted_by").references(() => users.id, { onDelete: "set null" }),
   createdAt: time("created_at").notNull().defaultNow(),
 }, (t) => [primaryKey({ columns: [t.userId, t.lectureId] })]);
+
+export const forumPosts = pgTable("forum_posts", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  lectureId: uuid("lecture_id").references(() => lectures.id, { onDelete: "set null" }),
+  title: varchar("title", { length: 200 }).notNull(),
+  body: text("body").notNull(),
+  pinned: boolean("pinned").notNull().default(false),
+  createdAt: time("created_at").notNull().defaultNow(),
+}, (t) => [index("forum_posts_created_idx").on(t.createdAt)]);
+
+export const forumReplies = pgTable("forum_replies", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  postId: uuid("post_id").notNull().references(() => forumPosts.id, { onDelete: "cascade" }),
+  userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  body: text("body").notNull(),
+  createdAt: time("created_at").notNull().defaultNow(),
+}, (t) => [index("forum_replies_post_idx").on(t.postId, t.createdAt)]);

@@ -2,14 +2,16 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Calculator, X, History, Delete, Trash2 } from "lucide-react";
 import { normalizeArabicMath } from "@/lib/arabic-math";
+import { evalExpr, formatValue, toDMS, type Disp, type Vars } from "@/lib/calc-engine";
+import { SolvePanel, ComplexPanel, VectorPanel, DistPanel, TablePanel } from "./CalcPanels";
 import { solveCubic, solveLinearText, solveQuadratic, solveSystem2, solveSystem3, toAr, type Solution } from "@/lib/solver-steps";
 
 type Mode = "DEG" | "RAD" | "GRAD";
-type Tab = "sci" | "graph" | "eq" | "mat" | "stat" | "conv" | "base" | "calc";
+type Tab = "sci" | "solve" | "graph" | "eq" | "mat" | "vec" | "cx" | "stat" | "dist" | "table" | "conv" | "base" | "calc";
 type MathApi = typeof import("mathjs");
 
 const TABS: { id: Tab; label: string }[] = [
-  { id: "sci", label: "علمية" }, { id: "graph", label: "رسم" }, { id: "eq", label: "حل المجاهيل" }, { id: "mat", label: "مصفوفات" },
+  { id: "sci", label: "علمية" }, { id: "solve", label: "SOLVE / CALC" }, { id: "eq", label: "معادلات" }, { id: "cx", label: "أعداد مركبة" }, { id: "mat", label: "مصفوفات" }, { id: "vec", label: "متجهات" }, { id: "dist", label: "توزيعات" }, { id: "table", label: "جدول" }, { id: "graph", label: "رسم" },
   { id: "stat", label: "إحصاء" }, { id: "conv", label: "تحويل" }, { id: "base", label: "أنظمة العد" }, { id: "calc", label: "تفاضل وتكامل" },
 ];
 
@@ -41,106 +43,137 @@ export default function FloatingCalculator() {
   const [expr, setExpr] = useState("");
   const [mode, setMode] = useState<Mode>("DEG");
   const [shift, setShift] = useState(false);
+  const [alpha, setAlpha] = useState(false);
+  const [sto, setSto] = useState(false);
   const [hyp, setHyp] = useState(false);
   const [frac, setFrac] = useState(false);
+  const [disp, setDisp] = useState<Disp>({ kind: "NORM", n: 9 });
+  const [dms, setDms] = useState(false);
   const [showConst, setShowConst] = useState(false);
   const [history, setHistory] = useState<{ e: string; r: string }[]>([]);
   const [showHist, setShowHist] = useState(false);
   const [ans, setAns] = useState("0");
-  const [memory, setMemory] = useState(0);
+  const [vars, setVars] = useState<Vars>({});
   const [err, setErr] = useState("");
   const [arabicDigits, setArabicDigits] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const dialogRef = useRef<HTMLDivElement>(null);
+  const caret = useRef<number | null>(null);
 
-  useEffect(() => { try { setHistory(JSON.parse(localStorage.getItem("calc-history") || "[]")); setMemory(Number(localStorage.getItem("calc-mem") || 0)); } catch {} }, []);
+  useEffect(() => { try { setHistory(JSON.parse(localStorage.getItem("calc-history") || "[]")); setVars(JSON.parse(localStorage.getItem("calc-vars") || "{}")); } catch {} }, []);
   useEffect(() => { if (open && !math) import("mathjs").then(m => setMath(m)); }, [open, math]);
   useEffect(() => { const h = (e: KeyboardEvent) => { if (e.key === "Escape") setOpen(false); }; window.addEventListener("keydown", h); return () => window.removeEventListener("keydown", h); }, []);
-  useEffect(() => { if (open && tab === "sci") setTimeout(() => inputRef.current?.focus(), 60); }, [open, tab]);
 
-  const scope = useMemo(() => {
-    if (!math) return null;
-    const f = mode === "DEG" ? Math.PI / 180 : mode === "GRAD" ? Math.PI / 200 : 1;
-    const rad = (x: number) => x * f; const back = (x: number) => x / f;
-    return {
-      sin: (x: number) => math.sin(rad(x)), cos: (x: number) => math.cos(rad(x)), tan: (x: number) => math.tan(rad(x)),
-      asin: (x: number) => back(Number(math.asin(x))), acos: (x: number) => back(Number(math.acos(x))), atan: (x: number) => back(Number(math.atan(x))),
-      sec: (x: number) => 1 / Math.cos(rad(x)), csc: (x: number) => 1 / Math.sin(rad(x)), cot: (x: number) => 1 / Math.tan(rad(x)),
-      ln: (x: number) => Math.log(x), sinh: (x: number) => Math.sinh(x), cosh: (x: number) => Math.cosh(x), tanh: (x: number) => Math.tanh(x), asinh: (x: number) => Math.asinh(x), acosh: (x: number) => Math.acosh(x), atanh: (x: number) => Math.atanh(x), nthRoot: (x: number, n: number) => Number(math.nthRoot(x, n)), Ans: Number(ans) || 0,
-      nPr: (n: number, r: number) => math.permutations(n, r), nCr: (n: number, r: number) => math.combinations(n, r),
-      rand: () => Math.random(),
-    };
-  }, [math, mode, ans]);
-
-  const run = useCallback((text: string) => {
-    if (!math || !scope) throw new Error("جارٍ تحميل المحرك...");
-    const src = normalizeArabicMath(text).replace(/√/g, "sqrt").replace(/∛/g, "cbrt").replace(/(\d)(?=pi|e\b|sqrt|sin|cos|tan|log|ln)/g, "$1*");
-    if (!src || src.length > 300) throw new Error("تعبير غير صالح.");
-    if (/[;=\[\]{}'"`\\]/.test(src) || /\b(import|createUnit|evaluate|parse|compile|simplify|derivative|function|help)\b/i.test(src)) throw new Error("رموز غير مسموحة.");
-    return math.evaluate(src, { ...scope });
-  }, [math, scope]);
-
-  const preview = useMemo(() => { if (!expr.trim() || !math) return ""; try { const r = run(expr); if (typeof r === "function" || r === undefined) return ""; return fmt(r); } catch { return ""; } }, [expr, run, math]);
-
-  const asFrac = (v: string) => { if (!frac || !math) return v; const n = Number(v); if (!Number.isFinite(n) || Number.isInteger(n)) return v; try { const g = math.fraction(n) as unknown as { n: number | bigint; d: number | bigint; s: number | bigint }; const f = { n: Number(g.n), d: Number(g.d), s: Number(g.s) }; if (f.d > 100000 || Math.abs(f.n / f.d - n) > 1e-9 * Math.max(1, Math.abs(n))) return v; const w = Math.floor(f.n / f.d), r = f.n % f.d; return (f.s < 0 ? "-" : "") + (w > 0 && r > 0 ? w + " " + r + "/" + f.d : f.n + "/" + f.d); } catch { return v; } };
+  const ansNum = Number(ans) || 0;
+  const runWith = useCallback((text: string, extra: Vars = {}) => {
+    if (!math) throw new Error("جارٍ تحميل المحرك...");
+    return evalExpr(math, text, mode, vars, ansNum, normalizeArabicMath, extra);
+  }, [math, mode, vars, ansNum]);
+  const fmtV = useCallback((v: unknown) => math ? formatValue(math, v, disp, frac) : String(v), [math, disp, frac]);
+  const full = (v: unknown): string => {
+    if (typeof v === "number") return String(Number(v.toPrecision(15)));
+    if (v && typeof v === "object" && "vals" in (v as object)) return String(((v as { vals: number[] }).vals)[0]);
+    return String(v);
+  };
+  const result = useMemo(() => {
+    if (!expr.trim() || !math) return { text: "", raw: undefined as unknown };
+    try { const r = runWith(expr); if (typeof r === "function" || r === undefined) return { text: "", raw: undefined }; return { text: dms && typeof r === "number" ? toDMS(r) : fmtV(r), raw: r }; } catch { return { text: "", raw: undefined }; }
+  }, [expr, runWith, math, fmtV, dms]);
   const show = (v: string) => (arabicDigits ? v.replace(/\d/g, d => "٠١٢٣٤٥٦٧٨٩"[Number(d)]) : v);
 
   function equals() {
     setErr("");
     try {
-      const r = run(expr); const out = fmt(r);
-      if (out === "undefined" || out === "NaN") throw new Error("النتيجة غير معرّفة.");
-      const next = [{ e: expr, r: out }, ...history].slice(0, 40);
-      setHistory(next); localStorage.setItem("calc-history", JSON.stringify(next)); setAns(out); setExpr(out);
-    } catch (e) { setErr(e instanceof Error ? e.message.slice(0, 120) : "خطأ في التعبير."); }
+      const r = runWith(expr); const out = full(r);
+      if (out === "undefined" || out === "NaN") throw new Error("النتيجة غير معرّفة (Math ERROR).");
+      const shown = fmtV(r);
+      const next = [{ e: expr, r: shown }, ...history].slice(0, 40);
+      setHistory(next); localStorage.setItem("calc-history", JSON.stringify(next)); setAns(out); setExpr(out); caret.current = out.length;
+    } catch (e) { setErr(e instanceof Error ? e.message.slice(0, 120) : "Syntax ERROR"); }
   }
-  const caret = useRef<number | null>(null);
-  const put = (str: string) => { setErr(""); const el = inputRef.current; const a = caret.current ?? expr.length; const b = el && el.selectionStart !== el.selectionEnd && document.activeElement === el ? (el.selectionEnd ?? a) : a; const st = el && document.activeElement === el ? (el.selectionStart ?? a) : a; const n = expr.slice(0, st) + str + expr.slice(b); setExpr(n); caret.current = st + str.length; setTimeout(() => { if (el) { el.setSelectionRange(st + str.length, st + str.length); } }, 0); };
-  const moveCaret = (d: number) => { const el = inputRef.current; const c = Math.max(0, Math.min(expr.length, (caret.current ?? expr.length) + d)); caret.current = c; if (el) { el.setSelectionRange(c, c); } };
+  const put = (str: string) => { setErr(""); const el = inputRef.current; const a = caret.current ?? expr.length; const b = el && el.selectionStart !== el.selectionEnd && document.activeElement === el ? (el.selectionEnd ?? a) : a; const st = el && document.activeElement === el ? (el.selectionStart ?? a) : a; const n = expr.slice(0, st) + str + expr.slice(b); setExpr(n); caret.current = st + str.length; setTimeout(() => { el?.setSelectionRange(st + str.length, st + str.length); }, 0); };
+  const moveCaret = (d: number) => { const el = inputRef.current; const c = Math.max(0, Math.min(expr.length, (caret.current ?? expr.length) + d)); caret.current = c; if (el) { el.focus(); el.setSelectionRange(c, c); } };
   const backspace = () => { const c = caret.current ?? expr.length; if (c <= 0) return; setExpr(expr.slice(0, c - 1) + expr.slice(c)); caret.current = c - 1; setTimeout(() => inputRef.current?.setSelectionRange(c - 1, c - 1), 0); };
-  const memApply = (k: string) => { const v = Number(preview || expr) || 0; const n = k === "MC" ? 0 : k === "M+" ? memory + v : k === "M-" ? memory - v : memory; if (k === "MR") put(String(memory)); else { setMemory(n); localStorage.setItem("calc-mem", String(n)); } };
+  const storeVar = (name: string) => { const next = { ...vars, [name]: ansNum }; setVars(next); localStorage.setItem("calc-vars", JSON.stringify(next)); setSto(false); };
+  const memAdd = (sign: number) => { const v = Number(result.raw !== undefined ? full(result.raw) : ans) || 0; const next = { ...vars, M: (vars.M || 0) + sign * v }; setVars(next); localStorage.setItem("calc-vars", JSON.stringify(next)); };
 
   const h = hyp ? "h" : "";
-  const keys: [string, string, string?][] = [
-    [shift ? `asin${h}(` : `sin${h}(`, shift ? `sin⁻¹` : "sin" + h], [shift ? `acos${h}(` : `cos${h}(`, shift ? "cos⁻¹" : "cos" + h], [shift ? `atan${h}(` : `tan${h}(`, shift ? "tan⁻¹" : "tan" + h], [shift ? "10^(" : "log10(", shift ? "10ˣ" : "log"], [shift ? "e^(" : "ln(", shift ? "eˣ" : "ln"], [shift ? "cbrt(" : "sqrt(", shift ? "∛" : "√"],
-    [shift ? "^3" : "^2", shift ? "x³" : "x²"], ["^", "xʸ"], ["^(-1)", "x⁻¹"], ["!", "n!"], ["abs(", "|x|"], ["nthRoot(", "ʸ√x"],
-    ["(", "("], [")", ")"], ["e", "×10ˣ"], ["pi", "π"], ["Ans", "Ans"], ["HYP", "hyp"],
-    ["7", "7", "n"], ["8", "8", "n"], ["9", "9", "n"], ["DEL", "⌫", "op"], ["AC", "AC", "op"], ["SD", "S⇔D"],
-    ["4", "4", "n"], ["5", "5", "n"], ["6", "6", "n"], ["*", "×", "op"], ["/", "÷", "op"], ["nCr(", "nCr"],
-    ["1", "1", "n"], ["2", "2", "n"], ["3", "3", "n"], ["+", "+", "op"], ["-", "−", "op"], ["nPr(", "nPr"],
-    ["0", "0", "n"], [".", ".", "n"], ["L", "◀"], ["R", "▶"], ["%", "%"], ["=", "=", "eq"],
+  type K = { m: string; s?: string; l: string; sl?: string; c?: string };
+  const rows: K[][] = [
+    [{ m: "SHIFT", l: "SHIFT", c: "mod" }, { m: "ALPHA", l: "ALPHA", c: "mod" }, { m: "L", l: "◀", c: "nav" }, { m: "R", l: "▶", c: "nav" }, { m: "MODE", l: "MODE", c: "mod" }, { m: "AC", l: "AC", c: "ac" }],
+    [{ m: "tabcalc", l: "CALC", s: "tabsolve", sl: "SOLVE" }, { m: "integ(", l: "∫dx", s: "diff(", sl: "d/dx" }, { m: "^(-1)", l: "x⁻¹", s: "!", sl: "x!" }, { m: "logb(", l: "logₐb", s: "sigma(", sl: "Σ" }, { m: "sqrt(", l: "√", s: "cbrt(", sl: "∛" }, { m: "^2", l: "x²", s: "^3", sl: "x³" }],
+    [{ m: "^", l: "xʸ", s: "nthRoot(", sl: "ʸ√x" }, { m: "log10(", l: "log", s: "10^(", sl: "10ˣ" }, { m: "ln(", l: "ln", s: "e^(", sl: "eˣ" }, { m: "-", l: "(−)", s: "prod(", sl: "Π" }, { m: "°", l: "° ′ ″", s: "dms", sl: "→DMS" }, { m: "HYP", l: "hyp" }],
+    [{ m: `sin${h}(`, l: "sin" + h, s: `asin${h}(`, sl: "sin⁻¹" }, { m: `cos${h}(`, l: "cos" + h, s: `acos${h}(`, sl: "cos⁻¹" }, { m: `tan${h}(`, l: "tan" + h, s: `atan${h}(`, sl: "tan⁻¹" }, { m: "(", l: "(", s: "gcd(", sl: "GCD" }, { m: ")", l: ")", s: "lcm(", sl: "LCM" }, { m: "SD", l: "S⇔D", s: "disp", sl: "FIX/SCI" }],
+    [{ m: "7", l: "7", c: "n", s: "CONST", sl: "CONST" }, { m: "8", l: "8", c: "n", s: "tabconv", sl: "CONV" }, { m: "9", l: "9", c: "n", s: "tabmat", sl: "MATRIX" }, { m: "DEL", l: "⌫", c: "del" }, { m: "STO", l: "STO", s: "RCL", sl: "RCL" }, { m: ",", l: ",", s: "rand()", sl: "Ran#" }],
+    [{ m: "4", l: "4", c: "n", s: "tabvec", sl: "VECTOR" }, { m: "5", l: "5", c: "n", s: "tabstat", sl: "STAT" }, { m: "6", l: "6", c: "n", s: "tabdist", sl: "DISTR" }, { m: "*", l: "×", c: "op", s: "nPr(", sl: "nPr" }, { m: "/", l: "÷", c: "op", s: "nCr(", sl: "nCr" }, { m: "M+", l: "M+", s: "M-", sl: "M−" }],
+    [{ m: "1", l: "1", c: "n", s: "tabcx", sl: "CMPLX" }, { m: "2", l: "2", c: "n", s: "tabeq", sl: "EQN" }, { m: "3", l: "3", c: "n", s: "tabtable", sl: "TABLE" }, { m: "+", l: "+", c: "op", s: "pol(", sl: "Pol" }, { m: "-", l: "−", c: "op", s: "rec(", sl: "Rec" }, { m: "randint(", l: "RanInt", s: "tabbase", sl: "BASE-N" }],
+    [{ m: "0", l: "0", c: "n", s: "tabgraph", sl: "GRAPH" }, { m: ".", l: ".", c: "n" }, { m: "e", l: "×10ˣ", s: "pi", sl: "π" }, { m: "Ans", l: "Ans", s: "(e)", sl: "e" }, { m: "i", l: "i", s: "abs(", sl: "Abs" }, { m: "=", l: "=", c: "eq" }],
   ];
-  const press = (k: string) => {
-    if (k === "AC") { setExpr(""); setErr(""); caret.current = 0; } else if (k === "DEL") backspace(); else if (k === "=") equals();
-    else if (k === "HYP") setHyp(!hyp); else if (k === "SD") setFrac(!frac); else if (k === "L") moveCaret(-1); else if (k === "R") moveCaret(1);
-    else put(k);
+  const TABMAP: Record<string, Tab> = { tabcalc: "solve", tabsolve: "solve", tabconv: "conv", tabmat: "mat", tabvec: "vec", tabstat: "stat", tabdist: "dist", tabcx: "cx", tabeq: "eq", tabtable: "table", tabbase: "base", tabgraph: "graph" };
+  const press = (k: K) => {
+    let code = k.m;
+    if (shift && k.s) code = k.s;
+    if (k.m !== "SHIFT" && k.m !== "ALPHA" || k.m === "SHIFT") { /* keep */ }
+    if (k.m !== "SHIFT") setShift(false);
+    if (code === "SHIFT") { setShift(s => !s); return; }
+    if (code === "ALPHA") { setAlpha(a => !a); return; }
+    if (code === "AC") { setExpr(""); setErr(""); caret.current = 0; return; }
+    if (code === "DEL") { backspace(); return; }
+    if (code === "=") { equals(); return; }
+    if (code === "HYP") { setHyp(!hyp); return; }
+    if (code === "SD") { setFrac(!frac); return; }
+    if (code === "L") { moveCaret(-1); return; }
+    if (code === "R") { moveCaret(1); return; }
+    if (code === "MODE") { setMode(mode === "DEG" ? "RAD" : mode === "RAD" ? "GRAD" : "DEG"); return; }
+    if (code === "STO") { setSto(true); setAlpha(true); return; }
+    if (code === "RCL") { setAlpha(true); return; }
+    if (code === "M+") { memAdd(1); return; }
+    if (code === "M-") { memAdd(-1); return; }
+    if (code === "dms") { setDms(d => !d); return; }
+    if (code === "disp") { setDisp(d => d.kind === "NORM" ? { kind: "FIX", n: 3 } : d.kind === "FIX" ? { kind: "SCI", n: 4 } : d.kind === "SCI" ? { kind: "ENG", n: 4 } : { kind: "NORM", n: 9 }); return; }
+    if (code === "CONST") { setShowConst(c => !c); return; }
+    if (TABMAP[code]) { setTab(TABMAP[code]); return; }
+    put(code);
   };
+  const letters = ["A", "B", "C", "D", "E", "F", "X", "Y", "M"];
+  const pickLetter = (l: string) => { if (sto) storeVar(l); else put(l); setAlpha(false); };
+  const quick = ["i", "abs(", "conj(", "re(", "im(", "arg(", "%", "pi", "!"];
+  const cur = (n: string) => n;
 
   return <>
     <button type="button" className="calc-fab" aria-label="فتح الآلة الحاسبة" title="الآلة الحاسبة" onClick={() => setOpen(o => !o)}><Calculator size={26}/><span className="calc-fab-ring" aria-hidden="true"/></button>
     {open && <div className="calc-overlay" onClick={e => { if (e.target === e.currentTarget) setOpen(false); }}>
       <div className="calc-modal glass" role="dialog" aria-modal="true" aria-label="الآلة الحاسبة المتطورة" ref={dialogRef} dir="rtl">
-        <div className="calc-head"><strong><Calculator size={18}/> الآلة الحاسبة المتطورة</strong><span className="calc-solar" aria-hidden="true"/><em className="calc-model" dir="ltr">SANAFIRY · fx-ADVANCED</em><button className="icon-button" type="button" onClick={() => setOpen(false)} aria-label="إغلاق"><X size={18}/></button></div>
+        <div className="calc-head"><strong><Calculator size={18}/> الآلة الحاسبة المتطورة</strong><span className="calc-solar" aria-hidden="true"/><em className="calc-model" dir="ltr">SANAFIRY · fx-ADVANCED</em><button className="icon-button" onClick={() => setOpen(false)} aria-label="إغلاق"><X size={18}/></button></div>
         <div className="calc-tabs" role="tablist">{TABS.map(t => <button type="button" role="tab" aria-selected={tab === t.id} key={t.id} className={tab === t.id ? "active" : ""} onClick={() => setTab(t.id)}>{t.label}</button>)}</div>
         {!math && <div className="calc-loading">جارٍ تحميل محرك الحساب...</div>}
         {math && tab === "sci" && <>
           <div className="calc-display" dir="ltr">
-            <input ref={inputRef} className="calc-input" onSelect={e => { caret.current = e.currentTarget.selectionStart; }} value={expr} onChange={e => { setExpr(e.target.value); setErr(""); }} onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); equals(); } }} placeholder="0" inputMode="none" aria-label="التعبير الرياضي" spellCheck={false}/>
-            <div className={`calc-result ${err ? "err" : ""}`}>{err || (preview ? "= " + show(asFrac(preview)) : "\u00a0")}</div>
+            <div className="calc-status">{shift ? <b>S</b> : null}{alpha ? <b>A</b> : null}{sto ? <b>STO</b> : null}<span>{mode}</span><span>{disp.kind === "NORM" ? "NORM" : disp.kind + disp.n}</span>{frac && <span>FRAC</span>}{dms && <span>DMS</span>}{hyp && <span>HYP</span>}</div>
+            <input ref={inputRef} className="calc-input" inputMode="none" onSelect={e => { caret.current = e.currentTarget.selectionStart; }} value={expr} onChange={e => { setExpr(e.target.value); setErr(""); }} onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); equals(); } }} aria-label="التعبير" placeholder="0" dir="ltr" autoComplete="off" spellCheck={false}/>
+            <div className={`calc-result ${err ? "err" : ""}`}>{err || (result.text ? show(result.text) : "\u00a0")}</div>
           </div>
           <div className="calc-toolbar">
-            <button type="button" className={shift ? "on" : ""} onClick={() => setShift(!shift)}>SHIFT</button>
             <button type="button" onClick={() => setMode(mode === "DEG" ? "RAD" : mode === "RAD" ? "GRAD" : "DEG")}>{mode}</button>
+            <button type="button" className={frac ? "on" : ""} onClick={() => setFrac(!frac)}>S⇔D</button>
+            <button type="button" className={dms ? "on" : ""} onClick={() => setDms(!dms)}>→DMS</button>
+            <button type="button" onClick={() => setDisp(d => d.kind === "NORM" ? { kind: "FIX", n: 3 } : d.kind === "FIX" ? { kind: "SCI", n: 4 } : d.kind === "SCI" ? { kind: "ENG", n: 4 } : { kind: "NORM", n: 9 })}>{disp.kind === "NORM" ? "NORM" : disp.kind}</button>
+            {disp.kind !== "NORM" && <button type="button" onClick={() => setDisp({ ...disp, n: disp.n >= 9 ? 0 : disp.n + 1 })}>{disp.n} رقم</button>}
             <button type="button" className={arabicDigits ? "on" : ""} onClick={() => setArabicDigits(!arabicDigits)}>١٢٣</button>
-            {["MC", "MR", "M+", "M-"].map(k => <button type="button" key={k} onClick={() => memApply(k)}>{k}</button>)}
             <button type="button" className={showConst ? "on" : ""} onClick={() => setShowConst(!showConst)}>ثوابت</button>
             <button type="button" className={showHist ? "on" : ""} onClick={() => setShowHist(!showHist)} aria-label="السجل"><History size={14}/></button>
           </div>
-          {showConst && <div className="calc-consts" dir="rtl">{CONSTS.map(([n, v, sym]) => <button type="button" key={n} onClick={() => { put(v); setShowConst(false); }}><span>{n}</span><b dir="ltr">{sym}</b></button>)}</div>}
-          {memory !== 0 && <div className="calc-mem">M = {show(fmt(memory))}</div>}
-          {showHist ? <div className="calc-history">{history.length ? <>{history.map((h, i) => <button type="button" key={i} onClick={() => { setExpr(h.r); setShowHist(false); }}><span dir="ltr">{h.e}</span><b dir="ltr">= {show(h.r)}</b></button>)}<button type="button" className="calc-clear" onClick={() => { setHistory([]); localStorage.removeItem("calc-history"); }}><Trash2 size={13}/> مسح السجل</button></> : <p className="small">لا توجد عمليات سابقة.</p>}</div>
-            : <div className="calc-keys">{keys.map(([k, l, c], i) => <button type="button" key={i} className={`k-${c || "fn"}`} onClick={() => press(k)}>{k === "DEL" ? <Delete size={16}/> : show(l)}</button>)}</div>}
+          <div className="calc-toolbar calc-quick" dir="ltr">{quick.map(q => <button type="button" key={q} onClick={() => put(q)}>{q === "pi" ? "π" : q}</button>)}</div>
+          {(alpha || sto) && <div className="calc-toolbar calc-quick" dir="ltr">{letters.map(l => <button type="button" key={l} className="on" onClick={() => pickLetter(l)}>{sto ? "→" : ""}{l}{vars[l] !== undefined ? `=${cur(String(Number(vars[l].toPrecision(6))))}` : ""}</button>)}</div>}
+          {showConst && <div className="calc-consts" dir="rtl">{CONSTS.map(([n, v, sym]) => <button type="button" key={n} onClick={() => { put(v); setShowConst(false); }}><span>{n}</span><small dir="ltr">{sym}</small></button>)}</div>}
+          {showHist ? <div className="calc-history">{history.length ? <>{history.map((x, i) => <button type="button" key={i} onClick={() => { setExpr(x.r); setShowHist(false); }}><span dir="ltr">{x.e}</span><b dir="ltr">= {show(x.r)}</b></button>)}<button type="button" className="calc-clear" onClick={() => { setHistory([]); localStorage.removeItem("calc-history"); }}><Trash2 size={14}/> مسح السجل</button></> : <p className="muted">لا توجد عمليات بعد.</p>}</div>
+            : <div className="calc-keys casio">{rows.flat().map((k, i) => <button type="button" key={i} className={`k-${k.c || "fn"} ${shift && k.s ? "shifted" : ""}`} onClick={() => press(k)}>{k.sl && <i className="k-sh">{k.sl}</i>}<span>{k.m === "DEL" ? <Delete size={18}/> : k.l}</span></button>)}</div>}
         </>}
+        {math && tab === "solve" && <SolvePanel math={math} runWith={runWith} initial={expr} fmtV={fmtV}/>}
+        {math && tab === "cx" && <ComplexPanel math={math} mode={mode} fmtV={fmtV}/>}
+        {math && tab === "vec" && <VectorPanel math={math} mode={mode} fmtV={fmtV}/>}
+        {math && tab === "dist" && <DistPanel math={math}/>}
+        {math && tab === "table" && <TablePanel runWith={runWith} fmtV={fmtV}/>}
         {math && tab === "graph" && <MiniGraph math={math} mode={mode}/>}
         {math && tab === "eq" && <EquationPanel math={math}/>}
         {math && tab === "mat" && <MatrixPanel math={math}/>}
