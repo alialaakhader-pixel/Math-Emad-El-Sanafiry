@@ -106,7 +106,7 @@ export default function FloatingCalculator() {
     <button type="button" className="calc-fab" aria-label="فتح الآلة الحاسبة" title="الآلة الحاسبة" onClick={() => setOpen(o => !o)}><Calculator size={26}/><span className="calc-fab-ring" aria-hidden="true"/></button>
     {open && <div className="calc-overlay" onClick={e => { if (e.target === e.currentTarget) setOpen(false); }}>
       <div className="calc-modal glass" role="dialog" aria-modal="true" aria-label="الآلة الحاسبة المتطورة" ref={dialogRef} dir="rtl">
-        <div className="calc-head"><strong><Calculator size={18}/> الآلة الحاسبة المتطورة</strong><button className="icon-button" type="button" onClick={() => setOpen(false)} aria-label="إغلاق"><X size={18}/></button></div>
+        <div className="calc-head"><strong><Calculator size={18}/> الآلة الحاسبة المتطورة</strong><span className="calc-solar" aria-hidden="true"/><em className="calc-model" dir="ltr">SANAFIRY · fx-ADVANCED</em><button className="icon-button" type="button" onClick={() => setOpen(false)} aria-label="إغلاق"><X size={18}/></button></div>
         <div className="calc-tabs" role="tablist">{TABS.map(t => <button type="button" role="tab" aria-selected={tab === t.id} key={t.id} className={tab === t.id ? "active" : ""} onClick={() => setTab(t.id)}>{t.label}</button>)}</div>
         {!math && <div className="calc-loading">جارٍ تحميل محرك الحساب...</div>}
         {math && tab === "sci" && <>
