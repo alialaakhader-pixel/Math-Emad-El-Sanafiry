@@ -1,6 +1,7 @@
 "use client";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Calculator, X, History, Delete, Trash2 } from "lucide-react";
+import CalcAi from "./CalcAi";
 import { normalizeArabicMath } from "@/lib/arabic-math";
 import { evalExpr, formatValue, toDMS, type Disp, type Vars } from "@/lib/calc-engine";
 import { SolvePanel, ComplexPanel, VectorPanel, DistPanel, TablePanel } from "./CalcPanels";
@@ -150,6 +151,7 @@ export default function FloatingCalculator() {
           <button type="button" role="tab" aria-selected={engine === "casio"} className={engine === "casio" ? "active" : ""} onClick={() => setEngine("casio")}>كاسيو الكاملة</button>
           <button type="button" role="tab" aria-selected={engine === "tools"} className={engine === "tools" ? "active" : ""} onClick={() => setEngine("tools")}>أدوات إضافية (رسم، وحدات...)</button>
         </div>
+        <CalcAi seed={engine === "tools" ? expr : ""}/>
         {engine === "casio" && <iframe title="آلة كاسيو" src="/calc/index.html" style={{ width: "100%", height: "min(78vh, 760px)", border: 0, borderRadius: 16, background: "#0b1016" }} allow="clipboard-write"/>}
         {engine === "tools" && <div className="calc-tabs" role="tablist">{TABS.map(t => <button type="button" role="tab" aria-selected={tab === t.id} key={t.id} className={tab === t.id ? "active" : ""} onClick={() => setTab(t.id)}>{t.label}</button>)}</div>}
         {engine === "tools" && !math && <div className="calc-loading">جارٍ تحميل محرك الحساب...</div>}

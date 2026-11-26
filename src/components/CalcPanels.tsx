@@ -59,17 +59,32 @@ export function ComplexPanel({ math, mode, fmtV }: { math: M; mode: string; fmtV
     try {
       const z1 = math.complex(N(a), N(b)), z2 = math.complex(N(c), N(d)); let r: M;
       switch (op) { case "+": r = math.add(z1, z2); break; case "−": r = math.subtract(z1, z2); break; case "×": r = math.multiply(z1, z2); break; case "÷": r = math.divide(z1, z2); break;
-        case "pow": r = math.pow(z1, N(n)); break; case "sqrt": r = math.sqrt(z1); break; case "conj": r = math.conj(z1); break; case "exp": r = math.exp(z1); break; case "ln": r = math.log(z1); break;
+        case "pow": r = math.pow(z1, N(n)); break; case "zpow": r = math.pow(z1, z2); break; case "sqrt": r = math.sqrt(z1); break; case "conj": r = math.conj(z1); break; case "exp": r = math.exp(z1); break; case "ln": r = math.log(z1); break;
         case "roots": { const m = Math.round(N(n)); if (m < 2 || m > 12) throw new Error("n من 2 إلى 12"); const rr = Math.pow(math.abs(z1), 1 / m), th = math.arg(z1); setOut([...Array(m).keys()].map(j => `z${j + 1} = ${fmtV(math.complex({ r: rr, phi: (th + 2 * Math.PI * j) / m }))}`)); return; }
         default: r = z1; }
       setOut(show(r));
     } catch (e) { setOut([]); setError(e instanceof Error ? e.message : "خطأ"); }
   }
+  const [ex, setEx] = useState("(1+i)^(2-i)");
+  function evalEx() {
+    setError("");
+    try {
+      const t = normalizeArabicMath(ex).replace(/[٠-٩]/g, d => String("٠١٢٣٤٥٦٧٨٩".indexOf(d))).replace(/\u00d7/g, "*").replace(/\u00f7/g, "/").replace(/\u2212/g, "-");
+      if (!t.trim() || t.length > 200 || !/^[\d\sa-zA-Z+\-*\/^().,]+$/.test(t)) throw new Error("عبارة غير صالحة.");
+      const ok = ["i", "e", "pi", "sqrt", "abs", "arg", "conj", "re", "im", "exp", "log", "ln", "sin", "cos", "tan", "sinh", "cosh", "tanh", "nthRoot", "cbrt"];
+      if ([...t.matchAll(/[a-zA-Z]+/g)].some(m => !ok.includes(m[0]))) throw new Error("دوال أو رموز غير مدعومة هنا.");
+      const v = math.evaluate(t.replace(/\bln\(/g, "log("));
+      if (v && typeof v === "object" && "re" in v && (Number.isNaN(v.re) || Number.isNaN(v.im))) throw new Error("القيمة غير معرّفة (مثل 0 أس عدد مركب)."); if (typeof v === "number" || (v && typeof v === "object" && "re" in v)) setOut(show(v)); else throw new Error("النتيجة ليست عدداً.");
+    } catch (e) { setOut([]); setError(e instanceof Error ? e.message : "خطأ"); }
+  }
   return <div className="calc-panel" dir="rtl">
+    <p className="small">عبارة مركبة بأي أس (القيمة الرئيسية): مثل (2+3i)^4 أو (1+i)^(2-i) أو i^i</p>
+    <div className="calc-row"><input className="input" dir="ltr" value={ex} onChange={e => setEx(e.target.value)} onKeyDown={e => { if (e.key === "Enter") evalEx(); }}/><button type="button" className="btn btn-primary" onClick={evalEx}>احسب</button></div>
+    <div className="split-line"/>
     <p className="small">z₁ = a + bi ، z₂ = c + di</p>
     <div className="calc-grid4"><Field label="a" value={a} set={setA}/><Field label="b" value={b} set={setB}/><Field label="c" value={c} set={setC}/><Field label="d" value={d} set={setD}/></div>
     <div className="calc-row wrap">{["+", "−", "×", "÷"].map(o => <button type="button" key={o} onClick={() => go(o)}>z₁ {o} z₂</button>)}</div>
-    <div className="calc-row wrap"><Field label="n" value={n} set={setN}/>{[["pow", "z₁ⁿ"], ["roots", "جذور n"], ["sqrt", "√z₁"], ["conj", "z̄₁"], ["exp", "e^z₁"], ["ln", "ln z₁"], ["", "تحليل z₁"]].map(([k2, l]) => <button type="button" key={l} onClick={() => go(k2)}>{l}</button>)}</div>
+    <div className="calc-row wrap"><Field label="n" value={n} set={setN}/>{[["pow", "z₁ⁿ"], ["zpow", "z₁^z₂"], ["roots", "جذور n"], ["sqrt", "√z₁"], ["conj", "z̄₁"], ["exp", "e^z₁"], ["ln", "ln z₁"], ["", "تحليل z₁"]].map(([k2, l]) => <button type="button" key={l} onClick={() => go(k2)}>{l}</button>)}</div>
     <Out lines={out} error={error}/>
   </div>;
 }
