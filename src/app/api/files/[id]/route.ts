@@ -11,7 +11,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
   if (!/^[0-9a-f-]{36}$/i.test(id)) return jsonError("ملف غير صالح.", 400);
   const [file] = await db.select().from(assets).where(eq(assets.id, id)).limit(1);
   if (!file) return jsonError("الملف غير موجود.", 404);
-  let allowed = user.role === "teacher" || file.ownerId === user.id;
+  let allowed = user.role === "teacher" || user.role === "staff" || file.ownerId === user.id;
   if (!allowed && file.lectureId) {
     const [lecture] = await db.select({ gradeId: lectures.gradeId, published: lectures.published, freePreview: lectures.freePreview }).from(lectures).where(eq(lectures.id, file.lectureId)).limit(1);
     allowed = !!lecture?.published && (lecture.freePreview || await canAccessGrade(user, lecture.gradeId));

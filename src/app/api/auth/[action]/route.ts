@@ -4,6 +4,7 @@ import { cookies } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
 import { adminLogs, grades, passwordResets, sessions, users } from "@/db/schema";
+import { ensureStudentCode } from "@/lib/gating";
 import { allowAttempt, createSession, digest, emailPattern, endSession, getCurrentUser, hashPassword, jsonError, makeToken, sameOrigin, verifyPassword } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
@@ -29,6 +30,7 @@ export async function POST(request: NextRequest, context: Context) {
       const existing = await db.select({ id: users.id }).from(users).where(eq(users.email, email)).limit(1);
       if (existing.length) return jsonError("هذا البريد مستخدم بالفعل.", 409);
       const [user] = await db.insert(users).values({ email, name, passwordHash: await hashPassword(password), gradeId }).returning({ id: users.id });
+      await ensureStudentCode(user.id).catch(() => null);
       await createSession(user.id, request.headers.get("user-agent"));
       return Response.json({ ok: true, redirect: "/dashboard" });
     }
@@ -38,7 +40,7 @@ export async function POST(request: NextRequest, context: Context) {
       const [user] = await db.select().from(users).where(eq(users.email, email)).limit(1);
       if (!user || !await verifyPassword(password, user.passwordHash)) return jsonError("البريد الإلكتروني أو كلمة المرور غير صحيحة.", 401);
       await createSession(user.id, request.headers.get("user-agent"));
-      return Response.json({ ok: true, redirect: user.role === "teacher" ? "/admin" : "/dashboard" });
+      return Response.json({ ok: true, redirect: user.role === "teacher" ? "/admin" : user.role === "staff" ? "/team" : "/dashboard" });
     }
     if (action === "logout") {
       await endSession();
@@ -137,7 +139,7 @@ export async function GET(request: NextRequest, context: Context) {
         [account] = await db.insert(users).values({ email, name: safeText(info.name, 120) || email.split("@")[0], googleId: String(info.sub) }).returning();
       }
       await createSession(account.id, request.headers.get("user-agent"));
-      return NextResponse.redirect(new URL(account.role === "teacher" ? "/admin" : "/dashboard", base));
+      return NextResponse.redirect(new URL(account.role === "teacher" ? "/admin" : account.role === "staff" ? "/team" : "/dashboard", base));
     } catch (error) {
       console.error("Google OAuth failed", error);
       return NextResponse.redirect(new URL("/auth?error=google_failed", base));

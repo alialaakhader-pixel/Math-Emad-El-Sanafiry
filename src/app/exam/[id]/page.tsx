@@ -14,6 +14,7 @@ export default async function ExamPage({ params }: { params: Promise<{ id: strin
   const user = await getCurrentUser();
   if (!user) redirect("/auth?mode=login");
   if (user.role === "teacher") redirect("/admin");
+  if (user.role === "staff") redirect("/team");
   const [exam] = await db.select().from(exams).where(and(eq(exams.id, id), eq(exams.published, true))).limit(1);
   if (!exam) notFound();
   const allowed = await canAccessGrade(user, exam.gradeId);

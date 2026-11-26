@@ -1,7 +1,7 @@
 import { boolean, index, integer, jsonb, pgEnum, pgTable, primaryKey, text, timestamp, uniqueIndex, uuid, varchar } from "drizzle-orm/pg-core";
 
 const time = (name: string) => timestamp(name, { withTimezone: true });
-export const roleEnum = pgEnum("account_role", ["student", "teacher"]);
+export const roleEnum = pgEnum("account_role", ["student", "teacher", "staff"]);
 export const examKindEnum = pgEnum("exam_kind", ["exam", "homework"]);
 export const questionKindEnum = pgEnum("question_kind", ["mcq", "text"]);
 export const attemptStatusEnum = pgEnum("attempt_status", ["in_progress", "pending_review", "graded"]);
@@ -21,10 +21,11 @@ export const users = pgTable("users", {
   name: varchar("name", { length: 120 }).notNull(),
   passwordHash: text("password_hash"),
   googleId: varchar("google_id", { length: 255 }),
+  studentCode: varchar("student_code", { length: 12 }),
   role: roleEnum("role").notNull().default("student"),
   gradeId: uuid("grade_id").references(() => grades.id, { onDelete: "set null" }),
   createdAt: time("created_at").notNull().defaultNow(),
-}, (t) => [uniqueIndex("users_email_idx").on(t.email), uniqueIndex("users_google_idx").on(t.googleId), index("users_grade_idx").on(t.gradeId)]);
+}, (t) => [uniqueIndex("users_email_idx").on(t.email), uniqueIndex("users_google_idx").on(t.googleId), uniqueIndex("users_student_code_idx").on(t.studentCode), index("users_grade_idx").on(t.gradeId)]);
 
 export const sessions = pgTable("sessions", {
   tokenHash: varchar("token_hash", { length: 64 }).primaryKey(),
@@ -71,6 +72,7 @@ export const lectures = pgTable("lectures", {
   videoUrl: text("video_url"),
   published: boolean("published").notNull().default(false),
   freePreview: boolean("free_preview").notNull().default(false),
+  homeworkId: uuid("homework_id"),
   sortOrder: integer("sort_order").notNull().default(0),
   createdAt: time("created_at").notNull().defaultNow(),
 }, (t) => [index("lectures_grade_idx").on(t.gradeId, t.published), index("lectures_created_idx").on(t.createdAt)]);
@@ -206,3 +208,10 @@ export const adminLogs = pgTable("admin_logs", {
   details: text("details").notNull().default(""),
   createdAt: time("created_at").notNull().defaultNow(),
 }, (t) => [index("admin_logs_created_idx").on(t.createdAt)]);
+
+export const lectureUnlocks = pgTable("lecture_unlocks", {
+  userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  lectureId: uuid("lecture_id").notNull().references(() => lectures.id, { onDelete: "cascade" }),
+  grantedBy: uuid("granted_by").references(() => users.id, { onDelete: "set null" }),
+  createdAt: time("created_at").notNull().defaultNow(),
+}, (t) => [primaryKey({ columns: [t.userId, t.lectureId] })]);

@@ -1,5 +1,5 @@
 import { randomBytes } from "node:crypto";
-import { and, desc, eq, isNull, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, isNull, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { activationCodes, adminLogs, announcements, assets, attemptAnswers, attempts, exams, grades, lectures, notifications, questions, siteSettings, subscriptions, terms, units, users } from "@/db/schema";
 import { CATALOG } from "@/lib/catalog";
@@ -25,7 +25,7 @@ export async function GET() {
       db.select().from(lectures).orderBy(desc(lectures.createdAt)),
       db.select().from(exams).orderBy(desc(exams.createdAt)),
       db.select().from(questions).orderBy(questions.sortOrder),
-      db.select({ id: users.id, name: users.name, email: users.email, gradeId: users.gradeId, createdAt: users.createdAt }).from(users).where(eq(users.role, "student")).orderBy(desc(users.createdAt)),
+      db.select({ id: users.id, name: users.name, email: users.email, gradeId: users.gradeId, studentCode: users.studentCode, role: users.role, createdAt: users.createdAt }).from(users).where(inArray(users.role, ["student", "staff"])).orderBy(desc(users.createdAt)),
       db.select().from(subscriptions).orderBy(desc(subscriptions.createdAt)),
       db.select({ id: activationCodes.id, gradeId: activationCodes.gradeId, durationDays: activationCodes.durationDays, expiresAt: activationCodes.expiresAt, usedAt: activationCodes.usedAt, usedBy: activationCodes.usedBy, revokedAt: activationCodes.revokedAt, createdAt: activationCodes.createdAt }).from(activationCodes).orderBy(desc(activationCodes.createdAt)),
       db.select().from(announcements).orderBy(desc(announcements.createdAt)),
@@ -126,7 +126,9 @@ export async function POST(request: Request) {
         if (unitId && (!termId || !(await db.select({ id: units.id }).from(units).where(and(eq(units.id, unitId), eq(units.termId, termId))).limit(1))[0])) return jsonError("الوحدة لا تتبع هذا الترم.");
         const videoUrl = txt(b.videoUrl, 1000);
         if (videoUrl && (!videoUrl.startsWith("https://") || !/^https:\/\//.test(videoUrl))) return jsonError("رابط الفيديو يجب أن يبدأ بـ HTTPS.");
-        const value = { gradeId: b.gradeId, termId, unitId, title: txt(b.title, 200), description: txt(b.description, 5000), videoUrl: videoUrl || null, sortOrder: pos(b.sortOrder), published: bool(b.published), freePreview: bool(b.freePreview) };
+        const homeworkId = idOk(b.homeworkId) ? b.homeworkId : null;
+        if (homeworkId && !(await db.select({ id: exams.id }).from(exams).where(and(eq(exams.id, homeworkId), eq(exams.gradeId, b.gradeId))).limit(1))[0]) return jsonError("الواجب لا يتبع هذا الصف.");
+        const value = { homeworkId, gradeId: b.gradeId, termId, unitId, title: txt(b.title, 200), description: txt(b.description, 5000), videoUrl: videoUrl || null, sortOrder: pos(b.sortOrder), published: bool(b.published), freePreview: bool(b.freePreview) };
         let newlyPublished = false;
         if (action === "createLecture") { await db.insert(lectures).values(value); newlyPublished = value.published; }
         else { if (!idOk(id)) return jsonError("معرّف غير صالح."); const [before] = await db.select({ published: lectures.published }).from(lectures).where(eq(lectures.id, id)).limit(1); await db.update(lectures).set(value).where(eq(lectures.id, id)); newlyPublished = value.published && !before?.published; }
@@ -256,6 +258,17 @@ export async function POST(request: Request) {
         if (b.key === "contact_email" && value && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) return jsonError("البريد الإلكتروني غير صالح.");
         if (b.key === "contact_url" && value && !value.startsWith("https://")) return jsonError("الرابط يجب أن يبدأ بـ HTTPS.");
         await db.insert(siteSettings).values({ key: String(b.key), value }).onConflictDoUpdate({ target: siteSettings.key, set: { value } });
+        break;
+      }
+      case "setRole": {
+        const email = txt(b.email, 320).toLowerCase();
+        const role = b.role === "staff" ? "staff" : b.role === "student" ? "student" : "";
+        if (!email || !role) return jsonError("اكتب بريد الحساب واختر الدور.");
+        const [target] = await db.select({ id: users.id, role: users.role }).from(users).where(eq(users.email, email)).limit(1);
+        if (!target) return jsonError("لا يوجد حساب بهذا البريد. يجب أن يسجل أولاً.");
+        if (target.role === "teacher") return jsonError("لا يمكن تغيير دور حساب المدرس.");
+        await db.update(users).set({ role }).where(eq(users.id, target.id));
+        message = role === "staff" ? "تم تعيينه عضواً في فريق المدرس." : "تم إرجاعه طالباً.";
         break;
       }
       case "deleteStudent": {

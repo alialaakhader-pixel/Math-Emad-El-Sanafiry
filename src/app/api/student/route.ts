@@ -1,3 +1,4 @@
+import { ensureStudentCode, lockMap } from "@/lib/gating";
 import { and, desc, eq, gt, isNull, ne, or, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { activationCodes, announcements, assets, attemptAnswers, attempts, exams, grades, labSaves, lectures, notificationReads, notifications, progress, questions, sessions, subscriptions, users } from "@/db/schema";
@@ -10,7 +11,7 @@ const text = (value: unknown, max = 1000) => typeof value === "string" ? value.t
 export async function GET() {
   const user = await getCurrentUser();
   if (!user) return jsonError("يرجى تسجيل الدخول.", 401);
-  if (user.role === "teacher") return jsonError("لوحة المدرس متاحة من قسم الإدارة.", 403);
+  if (user.role !== "student") return jsonError("لوحة المدرس متاحة من قسم الإدارة.", 403);
   try {
     const [allGrades, mySubscriptions, myProgress, allLectures, allExams, myAttempts, myNotifications, myReads, publicAnnouncements, mySessions, mySaves] = await Promise.all([
       db.select({ id: grades.id, title: grades.title, stage: grades.stage }).from(grades).where(eq(grades.published, true)).orderBy(grades.sortOrder),
@@ -25,7 +26,9 @@ export async function GET() {
       db.select({ tokenHash: sessions.tokenHash, userAgent: sessions.userAgent, createdAt: sessions.createdAt, expiresAt: sessions.expiresAt }).from(sessions).where(and(eq(sessions.userId, user.id), gt(sessions.expiresAt, new Date()))).orderBy(desc(sessions.createdAt)),
       db.select().from(labSaves).where(eq(labSaves.userId, user.id)).orderBy(desc(labSaves.updatedAt)),
     ]);
-    return Response.json({ user: { id: user.id, name: user.name, email: user.email, gradeId: user.gradeId, currentSession: user.tokenHash }, grades: allGrades, subscriptions: mySubscriptions, progress: myProgress, lectures: allLectures, exams: allExams, attempts: myAttempts, notifications: myNotifications, readIds: myReads.map(r => r.notificationId), announcements: publicAnnouncements, sessions: mySessions, saves: mySaves });
+    const [studentCode, locks] = await Promise.all([ensureStudentCode(user.id), lockMap(user.id, user.gradeId)]);
+    const lecturesOut = allLectures.map(l => ({ ...l, lock: locks[l.id] || { locked: false } }));
+    return Response.json({ user: { id: user.id, studentCode, name: user.name, email: user.email, gradeId: user.gradeId, currentSession: user.tokenHash }, grades: allGrades, subscriptions: mySubscriptions, progress: myProgress, lectures: lecturesOut, exams: allExams, attempts: myAttempts, notifications: myNotifications, readIds: myReads.map(r => r.notificationId), announcements: publicAnnouncements, sessions: mySessions, saves: mySaves });
   } catch (error) { console.error("Student load failed", error); return jsonError("تعذر تحميل بيانات حسابك.", 500); }
 }
 
@@ -76,6 +79,7 @@ export async function POST(request: Request) {
         if (!idOk(b.lectureId)) return jsonError("المحاضرة غير صالحة.");
         const [lecture] = await db.select({ gradeId: lectures.gradeId, published: lectures.published, freePreview: lectures.freePreview }).from(lectures).where(eq(lectures.id, b.lectureId)).limit(1);
         if (!lecture?.published || (!lecture.freePreview && !await canAccessGrade(user, lecture.gradeId))) return jsonError("ليس لديك صلاحية لهذه المحاضرة.", 403);
+        if ((await lockMap(user.id, lecture.gradeId))[b.lectureId]?.locked) return jsonError("المحاضرة مقفولة. حل واجب المحاضرة السابقة وحقق ٥٠٪ على الأقل.", 403);
         const seconds = Math.min(86400, Math.max(0, Math.floor(Number(b.seconds) || 0)));
         const completed = b.completed === true;
         await db.insert(progress).values({ userId: user.id, lectureId: b.lectureId, seconds, completed }).onConflictDoUpdate({ target: [progress.userId, progress.lectureId], set: { seconds: sql`greatest(${progress.seconds}, ${seconds})`, completed: sql`${progress.completed} or ${completed}`, updatedAt: new Date() } });

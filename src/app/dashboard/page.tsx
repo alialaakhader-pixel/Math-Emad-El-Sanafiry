@@ -9,5 +9,6 @@ export default async function DashboardPage() {
   const user = await getCurrentUser();
   if (!user) redirect("/auth?mode=login");
   if (user.role === "teacher") redirect("/admin");
+  if (user.role === "staff") redirect("/team");
   return <DashboardClient initialUser={{ name: user.name, email: user.email, id: user.id }}/>;
 }
