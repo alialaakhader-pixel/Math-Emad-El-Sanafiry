@@ -6,5 +6,5 @@ export const metadata: Metadata = { title: "معمل الرياضيات التف
 export const dynamic = "force-dynamic";
 export default async function LabPage() {
   const user = await getCurrentUser();
-  return <LabClient user={user ? { name: user.name, role: user.role } : null} assistantAvailable={!!user && !!process.env.OPENAI_API_KEY}/>;
+  return <LabClient user={user ? { name: user.name, role: user.role } : null} assistantAvailable={!!user && !!(process.env.ELLOOL_AI_URL || process.env.OPENAI_API_KEY)}/>;
 }
