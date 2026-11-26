@@ -209,3 +209,7 @@ html,body{overflow-x:clip}
   .app-tabs[aria-label="أقسام لوحة الطالب"]{flex-wrap:nowrap;overflow-x:auto;-webkit-overflow-scrolling:touch;scroll-snap-type:x proximity;padding-bottom:10px;margin-inline:-4px;padding-inline:4px}
   .app-tabs[aria-label="أقسام لوحة الطالب"] button{flex:0 0 auto;white-space:nowrap;scroll-snap-align:start}
 }
+
+.teacher-shortcut{display:inline-flex;align-items:center;gap:6px;height:39px;padding:0 13px;border-radius:10px;border:1px solid rgba(255,180,87,.45);color:#ffb457;font-size:12.5px;font-weight:700;white-space:nowrap;background:rgba(240,132,25,.08);transition:background .2s}.teacher-shortcut:hover{background:rgba(240,132,25,.18)}
+@media(max-width:900px){.teacher-shortcut{width:39px;padding:0;justify-content:center}.teacher-shortcut .ts-label{display:none}}
+html[data-theme="light"] .teacher-shortcut{color:#b45309}

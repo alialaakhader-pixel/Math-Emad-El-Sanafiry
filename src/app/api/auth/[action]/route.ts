@@ -39,9 +39,10 @@ export async function POST(request: NextRequest, context: Context) {
     }
     if (action === "login") {
       if (!await allowAttempt(`login:${ip}:${email}`, 8)) return jsonError("محاولات كثيرة. يرجى الانتظار قليلاً.", 429);
-      if (!emailPattern.test(email) || !password) return jsonError("أدخل البريد الإلكتروني وكلمة المرور.");
-      const [user] = await db.select().from(users).where(eq(users.email, email)).limit(1);
-      if (!user || !await verifyPassword(password, user.passwordHash)) return jsonError("البريد الإلكتروني أو كلمة المرور غير صحيحة.", 401);
+      const byCode = /^\d{6,12}$/.test(email);
+      if ((!byCode && !emailPattern.test(email)) || !password) return jsonError("أدخل البريد الإلكتروني أو رقم الطالب (ID) وكلمة المرور.");
+      const [user] = await db.select().from(users).where(byCode ? and(eq(users.studentCode, email), eq(users.role, "student")) : eq(users.email, email)).limit(1);
+      if (!user || !await verifyPassword(password, user.passwordHash)) return jsonError("البريد/رقم الطالب أو كلمة المرور غير صحيحة.", 401);
       await createSession(user.id, request.headers.get("user-agent"));
       return Response.json({ ok: true, redirect: user.role === "teacher" ? "/admin" : user.role === "staff" ? "/team" : "/dashboard" });
     }

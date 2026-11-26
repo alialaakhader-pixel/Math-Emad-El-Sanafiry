@@ -203,8 +203,13 @@ export async function POST(request: Request) {
         break;
       }
       case "manualActivate": {
-        if (!idOk(b.studentId) || !idOk(b.gradeId)) return jsonError("حدد الطالب والصف.");
-        const studentId: string = b.studentId, gradeIdValue: string = b.gradeId;
+        if (!idOk(b.gradeId)) return jsonError("حدد الصف.");
+        const ref = typeof b.studentId === "string" ? b.studentId.trim() : "";
+        let studentId = "";
+        if (idOk(ref)) studentId = ref;
+        else if (/^\d{6,12}$/.test(ref)) { const [f] = await db.select({ id: users.id }).from(users).where(and(eq(users.studentCode, ref), eq(users.role, "student"))).limit(1); if (f) studentId = f.id; }
+        if (!studentId) return jsonError("رقم الطالب (ID) غير موجود. تأكد منه من لوحة الطالب أو قائمة الطلاب.", 404);
+        const gradeIdValue: string = b.gradeId;
         const days = pos(b.durationDays);
         if (days < 1 || days > 730) return jsonError("المدة من يوم واحد إلى 730 يوماً.");
         const result = await db.transaction(async (tx) => {

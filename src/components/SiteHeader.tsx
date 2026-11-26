@@ -2,7 +2,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
-import { ArrowUpLeft, Menu, Moon, Sun, X } from "lucide-react";
+import { ArrowUpLeft, GraduationCap, Menu, Moon, Sun, X } from "lucide-react";
 
 export function Brand({ compact = false }: { compact?: boolean }) {
   return <Link href="/" className="brand" aria-label="منصة مستر عماد السنافيري - الرئيسية">
@@ -49,6 +49,7 @@ export default function SiteHeader({ user: userProp }: { user?: { name: string; 
       <nav className="desktop-nav" aria-label="التنقل الرئيسي">{links.filter(l => l.href !== "/admin" && l.href !== "/team").map(link => <Link key={link.href} href={link.href}>{link.label}</Link>)}</nav>
       <div className="header-actions">
         {(user?.role === "teacher" || user?.role === "staff") && <Link className="teacher-pill" href={user.role === "teacher" ? "/admin" : "/team"}><span aria-hidden="true">🎓</span> {user.role === "teacher" ? "لوحة المدرس" : "لوحة الفريق"}</Link>}
+        {!user && <Link className="teacher-shortcut" href="/auth?mode=login&teacher=1" aria-label="دخول المدرس" title="دخول المدرس"><GraduationCap size={16}/><span className="ts-label">دخول المدرس</span></Link>}
         <button type="button" className="icon-button theme-toggle" onClick={toggleTheme} aria-label={theme === "dark" ? "تفعيل الوضع النهاري" : "تفعيل الوضع الليلي"} title={theme === "dark" ? "الوضع النهاري" : "الوضع الليلي"}>{theme === "dark" ? <Sun size={19}/> : <Moon size={19}/>}</button>
         {user ? (user.role === "student" ? <Link className="header-login" href="/dashboard">لوحتي</Link> : null) : <Link className="header-login" href="/auth?mode=login">تسجيل الدخول</Link>}
         {user && <button type="button" className="header-login" style={{ whiteSpace: "nowrap" }} onClick={logout}>خروج</button>}
@@ -67,6 +68,7 @@ export default function SiteHeader({ user: userProp }: { user?: { name: string; 
       {user?.role === "teacher" && <Link className="teacher-pill" style={{ color: "#2a1300" }} onClick={() => setOpen(false)} href="/admin"><span aria-hidden="true">🎓</span> لوحة المدرس</Link>}
       {user?.role === "staff" && <Link className="teacher-pill" style={{ color: "#2a1300" }} onClick={() => setOpen(false)} href="/team"><span aria-hidden="true">🎓</span> لوحة الفريق</Link>}
       {user?.role === "student" && <Link onClick={() => setOpen(false)} href="/dashboard">لوحتي</Link>}
+      {!user && <Link onClick={() => setOpen(false)} href="/auth?mode=login&teacher=1"><span aria-hidden="true">🎓</span> دخول المدرس</Link>}
       {user ? <button type="button" className="btn btn-outline" onClick={logout}>تسجيل الخروج</button> : <><Link onClick={() => setOpen(false)} href="/auth?mode=login">تسجيل الدخول</Link><Link className="btn btn-primary" onClick={() => setOpen(false)} href="/auth?mode=register">ابدأ التعلم <ArrowUpLeft size={16}/></Link></>}
     </nav>}
   </header>;
