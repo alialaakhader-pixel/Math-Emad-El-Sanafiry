@@ -1,1 +1,0 @@
-export default function Loading() { return <main className="app-page" style={{ display: "grid", placeItems: "center", minHeight: "70vh" }}><div className="loading-block" role="status"><div className="loading-spinner"/> جارٍ تحميل المنصة...</div></main>; }
