@@ -39,6 +39,7 @@ const fmt = (n: unknown): string => {
 export default function FloatingCalculator() {
   const [open, setOpen] = useState(false);
   const [tab, setTab] = useState<Tab>("sci");
+  const [engine, setEngine] = useState<"casio" | "tools">("casio");
   const [math, setMath] = useState<MathApi | null>(null);
   const [expr, setExpr] = useState("");
   const [mode, setMode] = useState<Mode>("DEG");
@@ -145,9 +146,14 @@ export default function FloatingCalculator() {
     {open && <div className="calc-overlay" onClick={e => { if (e.target === e.currentTarget) setOpen(false); }}>
       <div className="calc-modal glass" role="dialog" aria-modal="true" aria-label="الآلة الحاسبة المتطورة" ref={dialogRef} dir="rtl">
         <div className="calc-head"><strong><Calculator size={18}/> الآلة الحاسبة المتطورة</strong><span className="calc-solar" aria-hidden="true"/><em className="calc-model" dir="ltr">SANAFIRY · fx-ADVANCED</em><button className="icon-button" onClick={() => setOpen(false)} aria-label="إغلاق"><X size={18}/></button></div>
-        <div className="calc-tabs" role="tablist">{TABS.map(t => <button type="button" role="tab" aria-selected={tab === t.id} key={t.id} className={tab === t.id ? "active" : ""} onClick={() => setTab(t.id)}>{t.label}</button>)}</div>
-        {!math && <div className="calc-loading">جارٍ تحميل محرك الحساب...</div>}
-        {math && tab === "sci" && <>
+        <div className="calc-tabs" role="tablist" style={{ marginBottom: 6 }}>
+          <button type="button" role="tab" aria-selected={engine === "casio"} className={engine === "casio" ? "active" : ""} onClick={() => setEngine("casio")}>كاسيو الكاملة</button>
+          <button type="button" role="tab" aria-selected={engine === "tools"} className={engine === "tools" ? "active" : ""} onClick={() => setEngine("tools")}>أدوات إضافية (رسم، وحدات...)</button>
+        </div>
+        {engine === "casio" && <iframe title="آلة كاسيو" src="/calc/index.html" style={{ width: "100%", height: "min(78vh, 760px)", border: 0, borderRadius: 16, background: "#0b1016" }} allow="clipboard-write"/>}
+        {engine === "tools" && <div className="calc-tabs" role="tablist">{TABS.map(t => <button type="button" role="tab" aria-selected={tab === t.id} key={t.id} className={tab === t.id ? "active" : ""} onClick={() => setTab(t.id)}>{t.label}</button>)}</div>}
+        {engine === "tools" && !math && <div className="calc-loading">جارٍ تحميل محرك الحساب...</div>}
+        {engine === "tools" && math && tab === "sci" && <>
           <div className="calc-display" dir="ltr">
             <div className="calc-status">{shift ? <b>S</b> : null}{alpha ? <b>A</b> : null}{sto ? <b>STO</b> : null}<span>{mode}</span><span>{disp.kind === "NORM" ? "NORM" : disp.kind + disp.n}</span>{frac && <span>FRAC</span>}{dms && <span>DMS</span>}{hyp && <span>HYP</span>}</div>
             <input ref={inputRef} className="calc-input" inputMode="none" onSelect={e => { caret.current = e.currentTarget.selectionStart; }} value={expr} onChange={e => { setExpr(e.target.value); setErr(""); }} onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); equals(); } }} aria-label="التعبير" placeholder="0" dir="ltr" autoComplete="off" spellCheck={false}/>
@@ -169,18 +175,18 @@ export default function FloatingCalculator() {
           {showHist ? <div className="calc-history">{history.length ? <>{history.map((x, i) => <button type="button" key={i} onClick={() => { setExpr(x.r); setShowHist(false); }}><span dir="ltr">{x.e}</span><b dir="ltr">= {show(x.r)}</b></button>)}<button type="button" className="calc-clear" onClick={() => { setHistory([]); localStorage.removeItem("calc-history"); }}><Trash2 size={14}/> مسح السجل</button></> : <p className="muted">لا توجد عمليات بعد.</p>}</div>
             : <div className="calc-keys casio">{rows.flat().map((k, i) => <button type="button" key={i} className={`k-${k.c || "fn"} ${shift && k.s ? "shifted" : ""}`} onClick={() => press(k)}>{k.sl && <i className="k-sh">{k.sl}</i>}<span>{k.m === "DEL" ? <Delete size={18}/> : k.l}</span></button>)}</div>}
         </>}
-        {math && tab === "solve" && <SolvePanel math={math} runWith={runWith} initial={expr} fmtV={fmtV}/>}
-        {math && tab === "cx" && <ComplexPanel math={math} mode={mode} fmtV={fmtV}/>}
-        {math && tab === "vec" && <VectorPanel math={math} mode={mode} fmtV={fmtV}/>}
-        {math && tab === "dist" && <DistPanel math={math}/>}
-        {math && tab === "table" && <TablePanel runWith={runWith} fmtV={fmtV}/>}
-        {math && tab === "graph" && <MiniGraph math={math} mode={mode}/>}
-        {math && tab === "eq" && <EquationPanel math={math}/>}
-        {math && tab === "mat" && <MatrixPanel math={math}/>}
-        {math && tab === "stat" && <StatPanel math={math}/>}
-        {math && tab === "conv" && <ConvertPanel/>}
-        {math && tab === "base" && <BasePanel/>}
-        {math && tab === "calc" && <CalculusPanel math={math}/>}
+        {engine === "tools" && math && tab === "solve" && <SolvePanel math={math} runWith={runWith} initial={expr} fmtV={fmtV}/>}
+        {engine === "tools" && math && tab === "cx" && <ComplexPanel math={math} mode={mode} fmtV={fmtV}/>}
+        {engine === "tools" && math && tab === "vec" && <VectorPanel math={math} mode={mode} fmtV={fmtV}/>}
+        {engine === "tools" && math && tab === "dist" && <DistPanel math={math}/>}
+        {engine === "tools" && math && tab === "table" && <TablePanel runWith={runWith} fmtV={fmtV}/>}
+        {engine === "tools" && math && tab === "graph" && <MiniGraph math={math} mode={mode}/>}
+        {engine === "tools" && math && tab === "eq" && <EquationPanel math={math}/>}
+        {engine === "tools" && math && tab === "mat" && <MatrixPanel math={math}/>}
+        {engine === "tools" && math && tab === "stat" && <StatPanel math={math}/>}
+        {engine === "tools" && math && tab === "conv" && <ConvertPanel/>}
+        {engine === "tools" && math && tab === "base" && <BasePanel/>}
+        {engine === "tools" && math && tab === "calc" && <CalculusPanel math={math}/>}
       </div>
     </div>}
   </>;
