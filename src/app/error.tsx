@@ -1,0 +1,4 @@
+"use client";
+import Link from "next/link";
+import { ArrowUpLeft, RotateCcw, TriangleAlert } from "lucide-react";
+export default function ErrorPage({ reset }: { error: Error & { digest?: string }; reset: () => void }) { return <main className="app-page" style={{ minHeight: "100vh", display: "grid", placeItems: "center", padding: 20 }}><div className="empty-featured" style={{ width: "min(650px,100%)", minHeight: 340 }}><span className="empty-icon"><TriangleAlert size={29}/></span><h1 style={{ fontSize: 29, margin: "8px 0" }}>حدث خطأ غير متوقع</h1><p>تعذر تحميل الصفحة الآن. حاول مرة أخرى، وإذا استمرت المشكلة فعد إلى الرئيسية.</p><div className="form-actions"><button className="btn btn-primary" onClick={reset}><RotateCcw size={16}/> إعادة المحاولة</button><Link className="btn btn-outline" href="/">الرئيسية <ArrowUpLeft size={16}/></Link></div></div></main>; }
