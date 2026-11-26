@@ -11,6 +11,7 @@ export const metadata: Metadata = {
   applicationName: "أكاديمية مستر عماد السنافيري للرياضيات",
   openGraph: { type: "website", locale: "ar_EG", title: "منصة مستر عماد السنافيري للرياضيات", description: "تعلم الرياضيات خطوة بخطوة، واستكشفها بطريقتك." },
   robots: { index: true, follow: true },
+  icons: { icon: "/icons/icon-192.png", apple: "/icons/icon-192.png" },
 };
 export const viewport: Viewport = { width: "device-width", initialScale: 1, themeColor: "#090e20" };
 
