@@ -19,6 +19,7 @@ export default function TeacherGate() {
         <input type="password" value={pw} onChange={e => setPw(e.target.value)} placeholder="كلمة المرور" autoFocus autoComplete="current-password" style={{ padding: 14, borderRadius: 12, border: "1px solid rgba(255,255,255,.3)", background: "rgba(0,0,0,.25)", color: "inherit", fontSize: 16 }} />
         {err && <p style={{ color: "#ff8a8a", textAlign: "center" }}>{err}</p>}
         <button disabled={busy || !pw} style={{ padding: 14, borderRadius: 12, background: "#f97316", color: "#fff", fontWeight: 800, fontSize: 16, border: 0 }}>{busy ? "..." : "دخول"}</button>
+        <a href="/auth?mode=login" style={{ textAlign: "center", fontSize: 13, opacity: .7 }}>← رجوع لتسجيل الطالب</a>
       </form>
     </main>
   );

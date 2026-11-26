@@ -1,3 +1,4 @@
+import { normalizePhone } from "@/lib/phone";
 import { ensureStudentCode, lockMap } from "@/lib/gating";
 import { and, desc, eq, gt, isNull, ne, or, sql } from "drizzle-orm";
 import { db } from "@/db";
@@ -28,7 +29,7 @@ export async function GET() {
     ]);
     const [studentCode, locks] = await Promise.all([ensureStudentCode(user.id), lockMap(user.id, user.gradeId)]);
     const lecturesOut = allLectures.map(l => ({ ...l, lock: locks[l.id] || { locked: false } }));
-    return Response.json({ user: { id: user.id, studentCode, name: user.name, email: user.email, gradeId: user.gradeId, currentSession: user.tokenHash }, grades: allGrades, subscriptions: mySubscriptions, progress: myProgress, lectures: lecturesOut, exams: allExams, attempts: myAttempts, notifications: myNotifications, readIds: myReads.map(r => r.notificationId), announcements: publicAnnouncements, sessions: mySessions, saves: mySaves });
+    return Response.json({ user: { id: user.id, studentCode, ...(await db.select({ avatar: users.avatar, parentPhone: users.parentPhone }).from(users).where(eq(users.id, user.id)).limit(1))[0], name: user.name, email: user.email, gradeId: user.gradeId, currentSession: user.tokenHash }, grades: allGrades, subscriptions: mySubscriptions, progress: myProgress, lectures: lecturesOut, exams: allExams, attempts: myAttempts, notifications: myNotifications, readIds: myReads.map(r => r.notificationId), announcements: publicAnnouncements, sessions: mySessions, saves: mySaves });
   } catch (error) { console.error("Student load failed", error); return jsonError("تعذر تحميل بيانات حسابك.", 500); }
 }
 
@@ -48,6 +49,18 @@ export async function POST(request: Request) {
     if (Number(request.headers.get("content-length") || 0) > 30000) return jsonError("الطلب كبير جداً.", 413);
     const b = await request.json() as Record<string, unknown>;
     switch (b.action) {
+      case "setAvatar": {
+        const a = typeof b.avatar === "string" ? b.avatar : "";
+        if (!/^data:image\/jpeg;base64,[A-Za-z0-9+/=]+$/.test(a) || a.length > 28000) return jsonError("الصورة غير صالحة أو كبيرة.");
+        await db.update(users).set({ avatar: a }).where(eq(users.id, user.id));
+        return Response.json({ ok: true, message: "تم حفظ الصورة." });
+      }
+      case "setParentPhone": {
+        const ph = normalizePhone(b.phone);
+        if (!ph) return jsonError("رقم غير صحيح (مثال: 01012345678).");
+        await db.update(users).set({ parentPhone: ph }).where(eq(users.id, user.id));
+        return Response.json({ ok: true, message: "تم حفظ رقم ولي الأمر." });
+      }
       case "updateProfile": {
         const name = text(b.name, 120);
         if (name.length < 2) return jsonError("الاسم يجب أن يتكون من حرفين على الأقل.");

@@ -1,4 +1,5 @@
 "use client";
+import ProfileCard from "./ProfileCard";
 import StudyToolkit from "@/components/StudyToolkit";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -8,7 +9,7 @@ import SiteHeader from "@/components/SiteHeader";
 
 type Grade = { id: string; title: string; stage: string };
 type Data = {
-  user: { studentCode?: string; id: string; name: string; email: string; gradeId: string | null; currentSession: string };
+  user: { avatar?: string | null; parentPhone?: string | null; studentCode?: string; id: string; name: string; email: string; gradeId: string | null; currentSession: string };
   grades: Grade[]; subscriptions: { id: string; gradeId: string; startsAt: string; endsAt: string; source: string }[];
   progress: { lectureId: string; seconds: number; completed: boolean }[];
   lectures: { lock?: { locked: boolean; reason?: string; bestPercent?: number | null; homeworkTitle?: string }; id: string; title: string; description: string; gradeId: string; freePreview: boolean; createdAt: string }[];
@@ -53,6 +54,7 @@ export default function DashboardClient({ initialUser }: { initialUser: { name: 
   return <div className="app-page"><SiteHeader user={{ name: initialUser.name, role: "student" }}/><main className="app-container"><Link href="/" className="app-back"><ArrowLeft size={15}/> الرئيسية</Link><div className="dashboard-banner"><span className="section-kicker"><span/> مساحتك التعليمية</span><h1>أهلاً، {data?.user.name || initialUser.name} 👋</h1><p>كل خطوة صغيرة في الفهم تُحدث فرقاً. تابع من حيث توقفت.</p></div>
   {message && <div className={`message ${error ? "error" : ""}`} role="status">{message}</div>}
   {!data ? <div className="loading-block"><div className="loading-spinner"/> جارٍ تحميل بياناتك...</div> : <>
+    <ProfileCard name={data.user.name} avatar={data.user.avatar} parentPhone={data.user.parentPhone}/>
     <div className="student-id-card"><span>رقم الطالب (ID)</span><b dir="ltr">{data.user.studentCode}</b><button type="button" className="inline-action" onClick={() => { navigator.clipboard.writeText(data.user.studentCode || ""); setError(false); setMessage("تم نسخ رقم الطالب. اعطه لخدمة العملاء عند الحاجة."); }}>نسخ</button></div>
     <div className="dashboard-highlights"><div className="highlight"><span><GraduationCap size={20}/></span><div><small>الصف الدراسي</small><strong>{gradeName}</strong></div></div><div className="highlight"><span><ShieldCheck size={20}/></span><div><small>حالة الاشتراك</small><strong style={{ fontSize: 15 }}>{currentActive ? "اشتراك نشط" : "لا يوجد اشتراك نشط"}</strong></div></div><div className="highlight"><span><CheckCircle2 size={20}/></span><div><small>محاضرات مكتملة</small><strong>{completed} من {data.lectures.length}</strong></div></div></div>
     <div className="app-tabs" role="tablist" aria-label="أقسام لوحة الطالب">{tabs.map(t => <button key={t.id} type="button" role="tab" aria-selected={tab === t.id} className={tab === t.id ? "active" : ""} onClick={() => { setTab(t.id); setMessage(""); }}><t.icon size={16}/>{t.title}{t.id === "notifications" && data.notifications.filter(n => !data.readIds.includes(n.id)).length > 0 && <span className="notice-dot"/>}</button>)}</div>

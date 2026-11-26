@@ -4,6 +4,7 @@ import { cookies } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
 import { adminLogs, grades, passwordResets, sessions, users } from "@/db/schema";
+import { normalizePhone } from "@/lib/phone";
 import { ensureStudentCode } from "@/lib/gating";
 import { allowAttempt, createSession, digest, emailPattern, endSession, getCurrentUser, hashPassword, jsonError, makeToken, sameOrigin, verifyPassword } from "@/lib/auth";
 
@@ -25,11 +26,13 @@ export async function POST(request: NextRequest, context: Context) {
       if (!await allowAttempt(`register:${ip}`, 10, 60 * 60 * 1000)) return jsonError("يرجى المحاولة لاحقاً.", 429);
       const name = safeText(body.name, 120);
       if (!emailPattern.test(email) || name.length < 2 || name.length > 120 || password.length < 10 || password.length > 200) return jsonError("تحقق من الاسم والبريد وكلمة المرور (10 أحرف على الأقل).");
+      const parentPhone = normalizePhone(body.parentPhone);
+      if (!parentPhone) return jsonError("أدخل رقم ولي الأمر صحيحاً (مثال: 01012345678).");
       const gradeId = safeText(body.gradeId, 36) || null;
       if (gradeId && !(await db.select({ id: grades.id }).from(grades).where(and(eq(grades.id, gradeId), eq(grades.published, true))).limit(1))[0]) return jsonError("الصف المختار غير متاح.");
       const existing = await db.select({ id: users.id }).from(users).where(eq(users.email, email)).limit(1);
       if (existing.length) return jsonError("هذا البريد مستخدم بالفعل.", 409);
-      const [user] = await db.insert(users).values({ email, name, passwordHash: await hashPassword(password), gradeId }).returning({ id: users.id });
+      const [user] = await db.insert(users).values({ email, name, passwordHash: await hashPassword(password), gradeId, parentPhone }).returning({ id: users.id });
       await ensureStudentCode(user.id).catch(() => null);
       await createSession(user.id, request.headers.get("user-agent"));
       return Response.json({ ok: true, redirect: "/dashboard" });

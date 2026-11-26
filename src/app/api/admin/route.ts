@@ -25,7 +25,7 @@ export async function GET() {
       db.select().from(lectures).orderBy(desc(lectures.createdAt)),
       db.select().from(exams).orderBy(desc(exams.createdAt)),
       db.select().from(questions).orderBy(questions.sortOrder),
-      db.select({ id: users.id, name: users.name, email: users.email, gradeId: users.gradeId, studentCode: users.studentCode, role: users.role, createdAt: users.createdAt }).from(users).where(inArray(users.role, ["student", "staff"])).orderBy(desc(users.createdAt)),
+      db.select({ id: users.id, name: users.name, email: users.email, gradeId: users.gradeId, studentCode: users.studentCode, parentPhone: users.parentPhone, avatar: users.avatar, role: users.role, createdAt: users.createdAt }).from(users).where(inArray(users.role, ["student", "staff"])).orderBy(desc(users.createdAt)),
       db.select().from(subscriptions).orderBy(desc(subscriptions.createdAt)),
       db.select({ id: activationCodes.id, gradeId: activationCodes.gradeId, durationDays: activationCodes.durationDays, expiresAt: activationCodes.expiresAt, usedAt: activationCodes.usedAt, usedBy: activationCodes.usedBy, revokedAt: activationCodes.revokedAt, createdAt: activationCodes.createdAt }).from(activationCodes).orderBy(desc(activationCodes.createdAt)),
       db.select().from(announcements).orderBy(desc(announcements.createdAt)),

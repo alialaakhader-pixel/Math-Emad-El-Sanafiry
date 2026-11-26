@@ -22,6 +22,8 @@ export const users = pgTable("users", {
   passwordHash: text("password_hash"),
   googleId: varchar("google_id", { length: 255 }),
   studentCode: varchar("student_code", { length: 12 }),
+  parentPhone: varchar("parent_phone", { length: 20 }),
+  avatar: text("avatar"),
   role: roleEnum("role").notNull().default("student"),
   gradeId: uuid("grade_id").references(() => grades.id, { onDelete: "set null" }),
   createdAt: time("created_at").notNull().defaultNow(),
