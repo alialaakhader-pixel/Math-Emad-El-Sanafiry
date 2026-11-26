@@ -46,13 +46,13 @@ export default function SiteHeader({ user: userProp }: { user?: { name: string; 
   return <header className="site-header">
     <div className="header-inner container-wide">
       <Brand />
-      <nav className="desktop-nav" aria-label="التنقل الرئيسي">{links.map(link => <Link key={link.href} href={link.href}>{link.label}</Link>)}</nav>
+      <nav className="desktop-nav" aria-label="التنقل الرئيسي">{links.filter(l => l.href !== "/admin" && l.href !== "/team").map(link => <Link key={link.href} href={link.href}>{link.label}</Link>)}</nav>
       <div className="header-actions">
         {(user?.role === "teacher" || user?.role === "staff") && <Link className="teacher-pill" href={user.role === "teacher" ? "/admin" : "/team"}><span aria-hidden="true">🎓</span> {user.role === "teacher" ? "لوحة المدرس" : "لوحة الفريق"}</Link>}
         <button type="button" className="icon-button theme-toggle" onClick={toggleTheme} aria-label={theme === "dark" ? "تفعيل الوضع النهاري" : "تفعيل الوضع الليلي"} title={theme === "dark" ? "الوضع النهاري" : "الوضع الليلي"}>{theme === "dark" ? <Sun size={19}/> : <Moon size={19}/>}</button>
-        {user ? <Link className="header-login" href={user.role === "teacher" ? "/admin" : user.role === "staff" ? "/team" : "/dashboard"}>{user.role === "teacher" ? "لوحة المدرس" : user.role === "staff" ? "لوحة الفريق" : "لوحتي"}</Link> : <Link className="header-login" href="/auth?mode=login">تسجيل الدخول</Link>}
-        {user && <button type="button" className="header-login" onClick={logout}>خروج</button>}
-        <Link className="btn btn-primary header-cta" href={user ? (user.role === "teacher" ? "/admin" : user.role === "staff" ? "/team" : "/dashboard") : "/auth?mode=register"}>{user ? (user.role === "teacher" ? "لوحة المدرس" : "اذهب إلى حسابك") : "ابدأ التعلم"}<ArrowUpLeft size={17}/></Link>
+        {user ? (user.role === "student" ? <Link className="header-login" href="/dashboard">لوحتي</Link> : null) : <Link className="header-login" href="/auth?mode=login">تسجيل الدخول</Link>}
+        {user && <button type="button" className="header-login" style={{ whiteSpace: "nowrap" }} onClick={logout}>خروج</button>}
+        {(!user || user.role === "student") && <Link className="btn btn-primary header-cta" href={user ? (user.role === "teacher" ? "/admin" : user.role === "staff" ? "/team" : "/dashboard") : "/auth?mode=register"}>{user ? (user.role === "teacher" ? "لوحة المدرس" : "اذهب إلى حسابك") : "ابدأ التعلم"}<ArrowUpLeft size={17}/></Link>}
         <button className="icon-button mobile-menu-toggle" type="button" aria-label={open ? "إغلاق القائمة" : "فتح القائمة"} aria-expanded={open} onClick={() => setOpen(!open)}>{open ? <X size={22}/> : <Menu size={22}/>}</button>
       </div>
     </div>
