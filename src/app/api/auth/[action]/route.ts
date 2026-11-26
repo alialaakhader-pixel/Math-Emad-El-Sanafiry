@@ -81,6 +81,19 @@ export async function POST(request: NextRequest, context: Context) {
       await db.delete(sessions).where(eq(sessions.userId, record.userId));
       return Response.json({ ok: true, message: "تم تحديث كلمة المرور. يمكنك تسجيل الدخول الآن.", redirect: "/auth?mode=login" });
     }
+    if (action === "teacher-login") {
+      if (!await allowAttempt(`tgate:${ip}`, 8)) return jsonError("محاولات كثيرة. يرجى الانتظار قليلاً.", 429);
+      const gate = process.env.TEACHER_GATE_PASSWORD || "";
+      const a = createHash("sha256").update(password).digest(); const b = createHash("sha256").update(gate).digest();
+      if (!gate || !password || !timingSafeEqual(a, b)) return jsonError("كلمة المرور غير صحيحة.", 401);
+      const tEmail = "teacher@mr-emad.local";
+      let [t] = await db.select({ id: users.id }).from(users).where(eq(users.email, tEmail)).limit(1);
+      if (!t) [t] = await db.insert(users).values({ email: tEmail, name: "مستر عماد السنافيري", role: "teacher", passwordHash: await hashPassword(makeToken()) }).returning({ id: users.id });
+      await db.update(users).set({ role: "teacher" }).where(eq(users.id, t.id));
+      await db.insert(adminLogs).values({ actorId: t.id, action: "teacher_gate_login" });
+      await createSession(t.id, request.headers.get("user-agent"));
+      return Response.json({ ok: true, redirect: "/admin" });
+    }
     if (action === "bootstrap") {
       const secret = process.env.TEACHER_SETUP_SECRET;
       const supplied = request.headers.get("x-setup-secret") || "";
