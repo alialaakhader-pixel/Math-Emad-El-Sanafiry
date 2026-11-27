@@ -5,6 +5,14 @@ export const maxDuration = 60;
 const ELLOOL_ORIGIN = "https://ellool-ai-studio.vercel.app";
 const SIZES: Record<string, [number, number]> = { portrait: [768, 1024], square: [1024, 1024], wide: [1024, 768] };
 
+const TPL_BASE = "Professional promotional poster photo. The main subject is the man from the reference photo: keep his exact face, black-framed glasses, beard and hair, clearly recognisable. ";
+const TPL_END = " Sharp, high quality, cinematic lighting. The bottom 20% of the image is darker and empty. No text, no letters, no numbers.";
+const TEMPLATES: Record<string, string> = {
+  "1": TPL_BASE + "He wears a dark navy blazer over a white open-collar shirt, arms crossed, confident warm smile, centered, shown from head to mid-thigh, head in the upper third. Background: deep navy with glowing cyan and violet holographic math visuals: a wireframe cube, parabola graph, 3D wave surface, glowing sphere and pyramid." + TPL_END,
+  "2": TPL_BASE + "He wears a white shirt with rolled sleeves and holds a silver drafting compass up in one hand, friendly smile, centered, head in the upper third, shown to the waist. Background: royal blue blueprint with white architectural line drawings, circles and angles, a few papers floating." + TPL_END,
+  "3": TPL_BASE + "He wears a dark green bomber jacket over a white t-shirt, one arm stretched toward the camera with the index finger pointing at the viewer, big smile, centered, head in the upper third, shown to the waist. Background: dark emerald green with golden light rays and floating gold 3D shapes: sphere, cone, cube, ruler, protractor." + TPL_END,
+};
+
 async function workerPost(path: string, payload: unknown, ms: number) {
   const base = process.env.ELLOOL_AI_URL?.replace(/\/+$/, ""); if (!base) return null;
   const origin = process.env.ELLOOL_AI_ORIGIN || ELLOOL_ORIGIN;
@@ -32,21 +40,21 @@ export async function POST(request: Request) {
   if (!user) return jsonError("سجّل دخولك الأول عشان تستخدم استوديو الصور.", 401);
   const raw = await request.text();
   if (raw.length > 2_500_000) return jsonError("الصورة كبيرة جداً. جرّب صورة أصغر.", 413);
-  let b: { prompt?: unknown; face?: unknown; size?: unknown };
+  let b: { prompt?: unknown; face?: unknown; size?: unknown; template?: unknown };
   try { b = JSON.parse(raw); } catch { return jsonError("طلب غير صالح."); }
-  const prompt = typeof b.prompt === "string" ? b.prompt.trim().slice(0, 900) : "";
+  const tpl = typeof b.template === "string" && TEMPLATES[b.template] ? b.template : "";
+  const prompt = tpl ? "poster" : typeof b.prompt === "string" ? b.prompt.trim().slice(0, 900) : "";
   if (prompt.length < 4) return jsonError("اكتب وصف الصورة اللي عايزها (4 حروف على الأقل).");
   const face = typeof b.face === "string" && /^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/.test(b.face) ? b.face : "";
-  const [w, h] = SIZES[String(b.size)] || SIZES.portrait;
+  if (tpl && !face) return jsonError("البوستر محتاج صورة وجهك. ارفع صورة واضحة.");
+  const [w, h] = tpl ? [768, 960] : SIZES[String(b.size)] || SIZES.portrait;
   if (!process.env.ELLOOL_AI_URL) return jsonError("استوديو الصور غير متاح الآن.", 503);
 
-  const perDay = user.role === "teacher" ? 20 : 6;
-  if (!await allowAttempt(`imagine:${user.id}`, perDay, 24 * 60 * 60 * 1000)) return jsonError(`وصلت للحد اليومي (${perDay} صور). ارجع بكرة بإذن الله.`, 429);
-  if (!await allowAttempt("imagine-global-day", 50, 24 * 60 * 60 * 1000)) return jsonError("الاستوديو وصل للحد اليومي المجاني. جرّب بكرة بإذن الله.", 429);
+  if (!await allowAttempt("imagine-global-day", 60, 24 * 60 * 60 * 1000)) return jsonError("ده الحد اليومي المجاني للمنصة كلها (مش حد شخصي ليك). الصور هترجع تشتغل بكرة بإذن الله.", 429);
 
   try {
-    let en = await toEnglish(prompt);
-    en += face
+    let en = tpl ? TEMPLATES[tpl] : await toEnglish(prompt);
+    if (!tpl) en += face
       ? ". The main person is the man in the reference photo: keep his exact face, glasses, beard and skin tone, recognisable. Professional, polished, high quality. Do not write any text, letters or numbers in the image."
       : ". Professional, polished, high quality. Do not write any text, letters or numbers in the image.";
     const r = await workerPost("/images/generations", { prompt: en, width: w, height: h, imageData: face || undefined }, 55000);
