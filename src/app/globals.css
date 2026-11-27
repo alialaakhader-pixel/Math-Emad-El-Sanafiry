@@ -301,3 +301,35 @@ div.live-room[data-lk-theme]{position:fixed!important;inset:0!important;z-index:
 .sv-final{margin-top:12px!important;padding:12px 14px;border-radius:12px;background:rgba(154,124,237,.14);border:1px solid var(--violet);font-weight:800}
 .sv-read{margin-bottom:14px;padding:11px 13px;border-radius:12px;background:var(--bg2);border:1px dashed var(--line-strong)}.sv-read p{margin:6px 0;font-size:13px;line-height:1.8}.sv-read small{color:var(--subtle)}
 .sv-warn{margin:10px 0 0;font-size:12px;color:var(--subtle);line-height:1.8}.sv-foot{text-align:center;color:var(--subtle)}.sv-foot a{color:var(--violet);font-weight:700}
+
+/* ===== Header and registration buttons (decluttered) ===== */
+.reg-btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:42px;padding:0 16px;border-radius:12px;font-size:13.5px;font-weight:800;white-space:nowrap;line-height:1.2;transition:transform .15s,box-shadow .15s}
+.reg-btn:hover{transform:translateY(-1px)}
+.reg-student{color:#fff;background:linear-gradient(135deg,#7c5cf0,#5b86ff);box-shadow:0 8px 22px rgba(102,141,255,.35)}
+.reg-teacher{color:#2a1300;background:linear-gradient(180deg,#ffb457,#f08419);box-shadow:0 8px 22px rgba(240,132,25,.32)}
+.reg-large{min-height:54px;padding:0 22px;font-size:15px;border-radius:14px}
+.header-actions{display:flex;align-items:center;gap:10px}
+.desktop-nav{gap:20px}
+.desktop-nav a,.nav-more summary{font-size:13px;white-space:nowrap}
+.nav-more{position:relative}
+.nav-more summary{list-style:none;cursor:pointer;color:var(--muted);padding:4px 2px}
+.nav-more summary::-webkit-details-marker{display:none}
+.nav-more summary::after{content:" ▾";font-size:11px}
+.nav-more[open] summary{color:var(--text)}
+.nav-more-list{position:absolute;top:calc(100% + 14px);inset-inline-start:-14px;min-width:170px;display:flex;flex-direction:column;padding:8px;border-radius:14px;background:var(--bg2);border:1px solid var(--line);box-shadow:0 20px 40px rgba(0,0,0,.35);z-index:120}
+.nav-more-list a{padding:10px 12px;border-radius:8px}
+.nav-more-list a:hover{background:var(--surface)}
+.drawer-cta{display:flex;flex-direction:column;gap:10px;padding:4px 0 14px;margin-bottom:6px;border-bottom:1px solid var(--line)}
+.drawer-cta .reg-btn{min-height:52px;font-size:15px;width:100%}
+.mobile-nav a.reg-btn{color:#fff;padding:0 16px}
+.mobile-nav a.reg-teacher{color:#2a1300}
+.mobile-nav a.drawer-login{background:none;text-align:center;font-size:13px}
+.drawer-login b{color:#ffb457}
+.hero-actions{display:flex;flex-wrap:wrap;gap:12px}
+@media(max-width:1180px){.desktop-nav{gap:14px}.reg-btn{padding:0 12px;font-size:12.5px}.header-actions{gap:7px}}
+@media(max-width:1020px){.header-actions .reg-btn,.header-actions .header-login{display:none}}
+@media(max-width:900px){.hide-m{display:none!important}.mobile-nav{max-height:calc(100dvh - 68px);overflow-y:auto}}
+@media(max-width:600px){.hero-actions{flex-direction:column;align-items:stretch;gap:12px;width:100%}.hero-actions .reg-btn{width:100%;font-size:16px;min-height:56px}.hero-actions .btn{width:100%}}
+.st-sizes{display:flex;gap:8px;flex-wrap:wrap}.st-sizes button{flex:1 1 90px;padding:11px 10px;border-radius:12px;border:1px solid var(--line);background:var(--surface);color:var(--muted);font-weight:700;font-size:13px}
+.st-sizes button.on{border-color:var(--violet);color:var(--text);background:rgba(154,124,237,.16)}
+.st-face{width:100%;justify-content:center}.st-img{width:100%;height:auto;border-radius:14px;display:block}

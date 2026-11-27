@@ -2,7 +2,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
-import { ArrowUpLeft, GraduationCap, Menu, Moon, Sun, X } from "lucide-react";
+import { ArrowUpLeft, Briefcase, GraduationCap, Menu, Moon, Sun, X } from "lucide-react";
 
 export function Brand({ compact = false }: { compact?: boolean }) {
   return <Link href="/" className="brand" aria-label="منصة مهندس فارس عماد - الرئيسية">
@@ -42,18 +42,18 @@ export default function SiteHeader({ user: userProp }: { user?: { name: string; 
     const next = theme === "dark" ? "light" : "dark";
     setTheme(next); document.documentElement.dataset.theme = next; localStorage.setItem("emad-theme", next);
   }
-  const links = [{ href: "/#about", label: "عن المنصة" }, { href: "/#stages", label: "المراحل الدراسية" }, { href: "/#lectures", label: "المحاضرات" }, { href: "/exams", label: "الامتحانات" }, { href: "/lab", label: "معمل الرياضيات" }, { href: "/forum", label: "المنتدى" }, { href: "/live", label: "حصص لايف" }, { href: "/practice", label: "تدرّب" }, { href: "/solve", label: "حلّال المسائل" }, { href: "/tutor", label: "المعلم الذكي" }, ...(user?.role === "teacher" ? [{ href: "/admin", label: "لوحة المدرس" }] : user?.role === "staff" ? [{ href: "/team", label: "لوحة الفريق" }] : [])];
+  const links = [{ href: "/#about", label: "عن المنصة" }, { href: "/#stages", label: "المراحل الدراسية" }, { href: "/#lectures", label: "المحاضرات" }, { href: "/exams", label: "الامتحانات" }, { href: "/lab", label: "معمل الرياضيات" }, { href: "/forum", label: "المنتدى" }, { href: "/live", label: "حصص لايف" }, { href: "/practice", label: "تدرّب" }, { href: "/solve", label: "حلّال المسائل" }, { href: "/tutor", label: "المعلم الذكي" }, { href: "/studio", label: "استوديو الصور" }, ...(user?.role === "teacher" ? [{ href: "/admin", label: "لوحة المدرس" }] : user?.role === "staff" ? [{ href: "/team", label: "لوحة الفريق" }] : [])];
+  const MORE = ["/#about", "/#stages", "/forum", "/tutor", "/studio"];
   return <header className="site-header">
     <div className="header-inner container-wide">
       <Brand />
-      <nav className="desktop-nav" aria-label="التنقل الرئيسي">{links.filter(l => l.href !== "/admin" && l.href !== "/team").map(link => <Link key={link.href} href={link.href}>{link.label}</Link>)}</nav>
+      <nav className="desktop-nav" aria-label="التنقل الرئيسي">{links.filter(l => !MORE.includes(l.href) && l.href !== "/admin" && l.href !== "/team").map(link => <Link key={link.href} href={link.href}>{link.label}</Link>)}<details className="nav-more"><summary>المزيد</summary><div className="nav-more-list">{links.filter(l => MORE.includes(l.href)).map(link => <Link key={link.href} href={link.href}>{link.label}</Link>)}</div></details></nav>
       <div className="header-actions">
-        {(user?.role === "teacher" || user?.role === "staff") && <Link className="teacher-pill" href={user.role === "teacher" ? "/admin" : "/team"}><span aria-hidden="true">🎓</span> {user.role === "teacher" ? "لوحة المدرس" : "لوحة الفريق"}</Link>}
-        {!user && <Link className="teacher-shortcut" href="/auth/teacher" aria-label="دخول المدرس" title="دخول المدرس"><GraduationCap size={16}/><span className="ts-label">دخول المدرس</span></Link>}
+        {(user?.role === "teacher" || user?.role === "staff") && <Link className="teacher-pill hide-m" href={user.role === "teacher" ? "/admin" : "/team"}><span aria-hidden="true">🎓</span> {user.role === "teacher" ? "لوحة المدرس" : "لوحة الفريق"}</Link>}
         <button type="button" className="icon-button theme-toggle" onClick={toggleTheme} aria-label={theme === "dark" ? "تفعيل الوضع النهاري" : "تفعيل الوضع الليلي"} title={theme === "dark" ? "الوضع النهاري" : "الوضع الليلي"}>{theme === "dark" ? <Sun size={19}/> : <Moon size={19}/>}</button>
-        {user ? (user.role === "student" ? <Link className="header-login" href="/dashboard">لوحتي</Link> : null) : <Link className="header-login" href="/auth?mode=login">تسجيل الدخول</Link>}
+        {!user && <><Link className="header-login" href="/auth?mode=login">دخول</Link><Link className="reg-btn reg-student" href="/auth?mode=register"><GraduationCap size={16}/>تسجيل الطلاب</Link><Link className="reg-btn reg-teacher" href="/auth/teacher"><Briefcase size={16}/>تسجيل المدرس</Link></>}
+        {user?.role === "student" && <><Link className="header-login" href="/dashboard">لوحتي</Link></>}
         {user && <button type="button" className="header-login" style={{ whiteSpace: "nowrap" }} onClick={logout}>خروج</button>}
-        {(!user || user.role === "student") && <Link className="btn btn-primary header-cta" href={user ? (user.role === "teacher" ? "/admin" : user.role === "staff" ? "/team" : "/dashboard") : "/auth?mode=register"}>{user ? (user.role === "teacher" ? "لوحة المدرس" : "اذهب إلى حسابك") : "ابدأ التعلم"}<ArrowUpLeft size={17}/></Link>}
         <button className="icon-button mobile-menu-toggle" type="button" aria-label={open ? "إغلاق القائمة" : "فتح القائمة"} aria-expanded={open} onClick={() => setOpen(!open)}>{open ? <X size={22}/> : <Menu size={22}/>}</button>
       </div>
     </div>
@@ -64,12 +64,12 @@ export default function SiteHeader({ user: userProp }: { user?: { name: string; 
             {me.hasAvatar ? <img key={avatarKey} src={`/api/avatar/${me.id}?v=${avatarKey}`} alt="" width={52} height={52} style={{ objectFit: "cover" }}/> : (me.name.trim()[0] || "؟")}</span>
           <input type="file" accept="image/*" hidden onChange={e => pickPhoto(e.target.files?.[0])}/></label>
         <div><strong>{me.name}</strong><div style={{ fontSize: 12, opacity: .7 }}>اضغط الدائرة لتغيير الصورة</div></div></div>}
+      {!user && <div className="drawer-cta"><Link className="reg-btn reg-student" onClick={() => setOpen(false)} href="/auth?mode=register"><GraduationCap size={18}/>تسجيل الطلاب</Link><Link className="reg-btn reg-teacher" onClick={() => setOpen(false)} href="/auth/teacher"><Briefcase size={18}/>تسجيل المدرس</Link><Link className="drawer-login" onClick={() => setOpen(false)} href="/auth?mode=login">عندك حساب؟ <b>سجّل دخولك</b></Link></div>}
       {links.filter(l => l.href !== "/admin" && l.href !== "/team").map(link => <Link onClick={() => setOpen(false)} key={link.href} href={link.href}>{link.label}</Link>)}
       {user?.role === "teacher" && <Link className="teacher-pill" style={{ color: "#2a1300" }} onClick={() => setOpen(false)} href="/admin"><span aria-hidden="true">🎓</span> لوحة المدرس</Link>}
       {user?.role === "staff" && <Link className="teacher-pill" style={{ color: "#2a1300" }} onClick={() => setOpen(false)} href="/team"><span aria-hidden="true">🎓</span> لوحة الفريق</Link>}
       {user?.role === "student" && <Link onClick={() => setOpen(false)} href="/dashboard">لوحتي</Link>}
-      {!user && <Link onClick={() => setOpen(false)} href="/auth/teacher"><span aria-hidden="true">🎓</span> دخول المدرس</Link>}
-      {user ? <button type="button" className="btn btn-outline" onClick={logout}>تسجيل الخروج</button> : <><Link onClick={() => setOpen(false)} href="/auth?mode=login">تسجيل الدخول</Link><Link className="btn btn-primary" onClick={() => setOpen(false)} href="/auth?mode=register">ابدأ التعلم <ArrowUpLeft size={16}/></Link></>}
+      {user ? <button type="button" className="btn btn-outline" onClick={logout}>تسجيل الخروج</button> : null}
     </nav>}
   </header>;
 }
