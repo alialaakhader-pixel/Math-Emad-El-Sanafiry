@@ -250,3 +250,4 @@ div.live-room[data-lk-theme]{position:fixed!important;inset:0!important;z-index:
 
 .tutor-conv{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:12px 14px;margin-bottom:8px;border-radius:18px;background:rgba(124,92,255,.14);border:1px solid rgba(34,211,238,.35);backdrop-filter:blur(12px)}.tutor-conv b{flex:1;min-width:150px}.tutor-orb{width:22px;height:22px;border-radius:50%;background:#22d3ee;box-shadow:0 0 18px #22d3ee;transition:transform .08s}.tutor-conv.thinking .tutor-orb{background:#a78bfa;box-shadow:0 0 18px #7c5cff;animation:tpulse 1s infinite}.tutor-conv.speaking .tutor-orb{background:#34d399;box-shadow:0 0 18px #34d399}
 .tutor-conv{position:sticky;bottom:78px;z-index:5}.tutor-bar{padding-left:70px;padding-bottom:max(14px,env(safe-area-inset-bottom))}.tutor-bar .btn-primary{flex:0 0 auto}
+.tutor-src{opacity:.75;margin:0 0 8px;font-size:12px}

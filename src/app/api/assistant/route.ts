@@ -2,6 +2,7 @@ import { eq } from "drizzle-orm";
 import { db } from "@/db";
 import { grades, lectures } from "@/db/schema";
 import { formatSolution, groundSolve } from "@/lib/ground-solve";
+import { searchKb, KB_MIN_SCORE, type Hit } from "@/lib/kb";
 import { allowAttempt, canAccessGrade, getCurrentUser, jsonError, sameOrigin } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
@@ -27,7 +28,18 @@ export async function POST(request: Request) {
   if (!await allowAttempt(`assistant:${user.id}`, 25, 60 * 60 * 1000)) return jsonError("وصلت إلى الحد المؤقت. حاول لاحقاً.", 429);
   try {
     const { question, lectureId, tutor, history } = await request.json();
-    const sysPrompt = tutor === true ? TUTOR_AR + (user.gradeId ? await gradeNote(user.gradeId) : "") : SYSTEM_AR;
+    let sysPrompt = tutor === true ? TUTOR_AR + (user.gradeId ? await gradeNote(user.gradeId) : "") : SYSTEM_AR;
+    let used: Hit[] = [];
+    if (tutor === true && typeof question === "string" && question.trim().length >= 3) {
+      // Free daily ceiling for the whole tutor, kept well under the Workers AI free allowance.
+      if (!await allowAttempt("tutor-global-day", 250, 24 * 60 * 60 * 1000)) return jsonError("المعلم الذكي وصل للحد اليومي المجاني. جرّب غداً بإذن الله.", 429);
+      try {
+        const hits = await searchKb(question, user.gradeId ?? null, 3);
+        used = hits.filter(h => h.score >= KB_MIN_SCORE).slice(0, 3);
+      } catch { used = []; }
+      if (used.length) sysPrompt += "\n\nمقاطع من كتب ومذكرات المنصة (استند إليها في شرحك بأسلوبك المبسط، ولا تضف قواعد غير موجودة فيها، وإن لم تغطِّ المقاطع جزءاً من السؤال فقل ذلك صراحة):\n" + used.map((h, i) => `[${i + 1}] ${h.title}: ${h.body}`).join("\n");
+      else sysPrompt += "\n\nلا توجد مقاطع من كتب المنصة تخص هذا السؤال. ابدأ إجابتك بهذه الجملة حرفياً: «ده مش موجود في كتب ومذكرات المنصة، والشرح التالي من معلوماتي العامة فراجعه مع مستر عماد.» ثم أجب باختصار إن كان السؤال رياضياً، وإن لم يكن رياضياً فاعتذر بلطف وقل إنك مختص بالرياضيات.";
+    }
     if (typeof question !== "string" || question.trim().length < 3 || question.length > 2000) return jsonError("اكتب سؤالاً رياضياً من 3 إلى 2000 حرف.");
     let context = "";
     if (typeof lectureId === "string") {
@@ -60,6 +72,6 @@ export async function POST(request: Request) {
       answer = (data.output || []).flatMap((item: { content?: { type: string; text?: string }[] }) => item.content || []).filter((part: { type: string }) => part.type === "output_text").map((part: { text?: string }) => part.text || "").join("\n");
     }
     if (!answer) return jsonError("لم يتمكن المساعد من توليد إجابة الآن.", 503);
-    return Response.json({ answer });
+    return Response.json({ answer, grounded: used.length > 0, sources: used.map(h => ({ title: h.title, page: h.page, own: h.own })) });
   } catch (error) { console.error("AI request failed", error); return jsonError("حدث خطأ أثناء معالجة سؤالك.", 500); }
 }
