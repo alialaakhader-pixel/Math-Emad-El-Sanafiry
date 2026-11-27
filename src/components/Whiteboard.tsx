@@ -1,7 +1,7 @@
 "use client";
 // Math whiteboard built on Excalidraw (MIT). Teacher draws; students follow live over the LiveKit data channel.
 import "@excalidraw/excalidraw/index.css";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, memo } from "react";
 import { Excalidraw, MainMenu, convertToExcalidrawElements } from "@excalidraw/excalidraw";
 import { RoomEvent, type RemoteParticipant } from "livekit-client";
 import { useRoomContext } from "@livekit/components-react";
@@ -12,8 +12,11 @@ import { latexToSvg } from "@/lib/mathSvg";
 type El = any;
 const enc = new TextEncoder(), dec = new TextDecoder();
 const CHUNK = 9000;
+const INITIAL_DATA = { appState: { currentItemStrokeWidth: 2, currentItemStrokeColor: "#1e1e1e" } } as never;
+const UI_TEACHER = { canvasActions: { loadScene: false, saveToActiveFile: false, export: false, toggleTheme: false, clearCanvas: true } } as never;
+const UI_VIEWER = { canvasActions: { loadScene: false, saveToActiveFile: false, export: false, toggleTheme: false, clearCanvas: false } } as never;
 
-export default function Whiteboard({ isTeacher }: { isTeacher: boolean }) {
+function WhiteboardInner({ isTeacher }: { isTeacher: boolean }) {
   const room = useRoomContext();
   const apiRef = useRef<any>(null);
   const pagesRef = useRef<El[][]>([[]]);
@@ -28,6 +31,18 @@ export default function Whiteboard({ isTeacher }: { isTeacher: boolean }) {
   const [mathErr, setMathErr] = useState("");
   const inbox = useRef<Map<string, { n: number; parts: string[] }>>(new Map());
   const fitTimer = useRef<any>(null);
+  const pending = useRef<Map<string, El>>(new Map());
+  const pendingFiles = useRef<Record<string, any> | null>(null);
+  const flushTimer = useRef<any>(null);
+  // Remote strokes arrive in bursts: apply them at most ~11 times a second in one scene update.
+  const flushDiffs = () => {
+    flushTimer.current = null;
+    const api = apiRef.current; if (!api || !pending.current.size) return;
+    const cur: El[] = api.getSceneElementsIncludingDeleted(); const map = new Map(cur.map(e => [e.id, e]));
+    for (const e of pending.current.values()) { const old = map.get(e.id); if (!old || old.version < e.version || (old.version === e.version && old.versionNonce !== e.versionNonce)) map.set(e.id, e); }
+    pending.current.clear(); const files = pendingFiles.current; pendingFiles.current = null;
+    applyScene([...map.values()], files || undefined); doFit();
+  };
   const sendTimer = useRef<any>(null);
 
   const send = useCallback(async (msg: object, to?: string[]) => {
@@ -80,11 +95,9 @@ export default function Whiteboard({ isTeacher }: { isTeacher: boolean }) {
         setPage(m.page); pageRef.current = m.page; setTotal(m.total);
         pagesRef.current[m.page] = m.els; applyScene(m.els, m.files); doFit();
       } else if (m.t === "diff" && m.page === pageRef.current) {
-        const api = apiRef.current; if (!api) return;
-        const cur: El[] = api.getSceneElementsIncludingDeleted(); const map = new Map(cur.map(e => [e.id, e]));
-        for (const e of m.els as El[]) { const old = map.get(e.id); if (!old || old.version < e.version || (old.version === e.version && old.versionNonce !== e.versionNonce)) map.set(e.id, e); }
-        const order = new Map<string, number>(); (m.els as El[]).forEach((e) => order.set(e.id, 1));
-        applyScene([...map.values()], m.files); doFit();
+        for (const e of m.els as El[]) { const o = pending.current.get(e.id); if (!o || o.version <= e.version) pending.current.set(e.id, e); }
+        if (m.files) pendingFiles.current = { ...(pendingFiles.current || {}), ...m.files };
+        if (!flushTimer.current) flushTimer.current = setTimeout(flushDiffs, 90);
       }
     };
     room.on(RoomEvent.DataReceived, onData as never);
@@ -93,6 +106,8 @@ export default function Whiteboard({ isTeacher }: { isTeacher: boolean }) {
     if (!isTeacher) { const t = [...room.remoteParticipants.values()].find(p => p.identity.startsWith("t-")); if (t) void send({ t: "hello" }, [t.identity]); }
     return () => { room.off(RoomEvent.DataReceived, onData as never); room.off(RoomEvent.ParticipantConnected, onJoin); };
   }, [room, isTeacher, send, sendFull]);
+
+  useEffect(() => { if (!isTeacher) return; const t = setTimeout(() => sendFull(), 1200); return () => clearTimeout(t); }, [isTeacher, sendFull]);
 
   const onChange = (elements: readonly El[]) => {
     if (!isTeacher) return;
@@ -103,7 +118,7 @@ export default function Whiteboard({ isTeacher }: { isTeacher: boolean }) {
       changed.forEach(e => sentRef.current.set(e.id, e.version));
       pagesRef.current[pageRef.current] = elements as El[];
       void send({ t: "diff", page: pageRef.current, els: changed, files: filesFor(changed) });
-    }, 120);
+    }, 150);
   };
 
   const goPage = (n: number) => {
@@ -149,8 +164,9 @@ export default function Whiteboard({ isTeacher }: { isTeacher: boolean }) {
         onChange={onChange as never}
         viewModeEnabled={!isTeacher}
         langCode="ar-SA"
-        UIOptions={{ canvasActions: { loadScene: false, saveToActiveFile: false, export: false, toggleTheme: false, clearCanvas: isTeacher } } as never}
-        initialData={{ appState: { currentItemStrokeWidth: 2, currentItemStrokeColor: "#1e1e1e" } } as never}
+        UIOptions={isTeacher ? UI_TEACHER : UI_VIEWER}
+        detectScroll={false} handleKeyboardGlobally={false} autoFocus={false}
+        initialData={INITIAL_DATA}
       >
         <MainMenu>
           {isTeacher && <MainMenu.DefaultItems.ClearCanvas/>}
@@ -166,3 +182,5 @@ export default function Whiteboard({ isTeacher }: { isTeacher: boolean }) {
       </div></div>}
   </div>;
 }
+
+export default memo(WhiteboardInner);

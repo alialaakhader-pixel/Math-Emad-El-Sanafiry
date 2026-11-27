@@ -1,3 +1,4 @@
+import { pool } from "@/db";
 import { getCurrentUser, jsonError, sameOrigin } from "@/lib/auth";
 import { liveConfigured, roomClient, roomFor, validId } from "@/lib/live";
 
@@ -9,6 +10,6 @@ export async function POST(request: Request) {
   if (!liveConfigured()) return jsonError("الحصص المباشرة لم تُفعَّل بعد.", 503);
   const { gradeId } = await request.json().catch(() => ({}));
   if (!validId(gradeId)) return jsonError("حدد الصف.");
-  try { await roomClient().deleteRoom(roomFor(gradeId)); return Response.json({ ok: true }); }
+  try { await roomClient().deleteRoom(roomFor(gradeId)); await pool.query("delete from live_files where grade_id = $1", [gradeId]); return Response.json({ ok: true }); }
   catch (e) { console.error("live end", e); return jsonError("تعذر إنهاء الحصة.", 503); }
 }

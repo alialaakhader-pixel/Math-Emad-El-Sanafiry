@@ -12,9 +12,10 @@ export async function POST(request: Request) {
   const { gradeId } = await request.json().catch(() => ({}));
   if (!validId(gradeId)) return jsonError("حدد الصف.");
   const teacher = user.role === "teacher";
+  if (user.role !== "teacher" && user.role !== "student") return jsonError("غير مسموح.", 403);
   if (!teacher && !(await canAccessGrade(user, gradeId))) return jsonError("الحصة المباشرة لمشتركي هذا الصف فقط.", 403);
   try {
-    if (!teacher && !(await roomState(gradeId)).live) return jsonError("الحصة لم تبدأ بعد. انتظر حتى يفتحها المدرس.", 409);
+    if (!teacher && !(await roomState(gradeId)).live) return jsonError("الحصة لم تبدأ بعد. المدرس وحده يفتح الحصة، انتظره.", 409);
     const at = new AccessToken(process.env.LIVEKIT_API_KEY!, process.env.LIVEKIT_API_SECRET!, { identity: `${teacher ? "t" : "s"}-${user.id}`, name: user.name, ttl: "4h", metadata: JSON.stringify({ role: user.role }) });
     at.addGrant({ roomJoin: true, room: roomFor(gradeId), canPublish: true, canSubscribe: true, canPublishData: true, roomCreate: teacher, roomAdmin: teacher });
     return Response.json({ token: await at.toJwt(), url: process.env.LIVEKIT_URL, role: teacher ? "teacher" : "student" });
