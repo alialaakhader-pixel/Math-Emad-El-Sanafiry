@@ -4,7 +4,7 @@ import { pool } from "@/db";
 import { cairoDay, levelFloor, levelOf, topicBreakdown } from "@/lib/xp";
 import { StatsStrip } from "@/components/PracticeClient";
 
-export const metadata: Metadata = { title: "تقرير تقدّم الطالب | منصة مستر عماد السنافيري", robots: { index: false, follow: false } };
+export const metadata: Metadata = { title: "تقرير تقدّم الطالب | منصة مهندس فارس عماد", robots: { index: false, follow: false } };
 export const dynamic = "force-dynamic";
 
 export default async function ParentPage({ params }: { params: Promise<{ token: string }> }) {
@@ -33,7 +33,7 @@ export default async function ParentPage({ params }: { params: Promise<{ token: 
   return <div className="app-page"><div className="parent-wrap">
     <div className="section-kicker"><span/>تقرير ولي الأمر</div>
     <h1 style={{ margin: "8px 0 4px" }}>تقدّم {first}</h1>
-    <p className="muted small">{s.grade ?? ""} · منصة مستر عماد السنافيري · للقراءة فقط</p>
+    <p className="muted small">{s.grade ?? ""} · منصة مهندس فارس عماد · للقراءة فقط</p>
     <StatsStrip s={{ xp: s.xp, level: lv, from: levelFloor(lv), to: levelFloor(lv + 1), streak, best: s.best, doneToday: false, todayAnswers: 0, todayCorrect: 0, goal: 5, dayXp: 0, cap: 200, parentToken: null }}/>
     <div className="parent-grid">
       <div className="parent-stat"><b>{active} / 7</b><span>أيام نشطة هذا الأسبوع</span></div>

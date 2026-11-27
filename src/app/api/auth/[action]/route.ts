@@ -71,7 +71,7 @@ export async function POST(request: NextRequest, context: Context) {
         const token = makeToken();
         await db.insert(passwordResets).values({ tokenHash: digest(token), userId: account.id, expiresAt: new Date(Date.now() + 30 * 60 * 1000) });
         const link = `${process.env.APP_URL || new URL(request.url).origin}/auth?mode=reset&token=${encodeURIComponent(token)}`;
-        const sent = await fetch("https://api.resend.com/emails", { method: "POST", headers: { Authorization: `Bearer ${process.env.RESEND_API_KEY}`, "Content-Type": "application/json" }, body: JSON.stringify({ from: process.env.RESEND_FROM_EMAIL, to: [email], subject: "استعادة كلمة المرور | منصة مستر عماد السنافيري", text: `لاستعادة كلمة المرور افتح الرابط التالي خلال 30 دقيقة:\n${link}\nإذا لم تطلب هذا التغيير فتجاهل الرسالة.` }) });
+        const sent = await fetch("https://api.resend.com/emails", { method: "POST", headers: { Authorization: `Bearer ${process.env.RESEND_API_KEY}`, "Content-Type": "application/json" }, body: JSON.stringify({ from: process.env.RESEND_FROM_EMAIL, to: [email], subject: "استعادة كلمة المرور | منصة مهندس فارس عماد", text: `لاستعادة كلمة المرور افتح الرابط التالي خلال 30 دقيقة:\n${link}\nإذا لم تطلب هذا التغيير فتجاهل الرسالة.` }) });
         if (!sent.ok) return jsonError("تعذر إرسال الرسالة الآن. حاول لاحقاً.", 503);
       }
       return Response.json({ ok: true, message: "إذا كان البريد مسجلاً، ستصلك رسالة الاستعادة." });
@@ -92,7 +92,7 @@ export async function POST(request: NextRequest, context: Context) {
       if (!gate || !password || !timingSafeEqual(a, b)) return jsonError("كلمة المرور غير صحيحة.", 401);
       const tEmail = "teacher@mr-emad.local";
       let [t] = await db.select({ id: users.id }).from(users).where(eq(users.email, tEmail)).limit(1);
-      if (!t) [t] = await db.insert(users).values({ email: tEmail, name: "مستر عماد السنافيري", role: "teacher", passwordHash: await hashPassword(makeToken()) }).returning({ id: users.id });
+      if (!t) [t] = await db.insert(users).values({ email: tEmail, name: "مهندس فارس عماد", role: "teacher", passwordHash: await hashPassword(makeToken()) }).returning({ id: users.id });
       await db.update(users).set({ role: "teacher" }).where(eq(users.id, t.id));
       await db.insert(adminLogs).values({ actorId: t.id, action: "teacher_gate_login" });
       await createSession(t.id, request.headers.get("user-agent"));

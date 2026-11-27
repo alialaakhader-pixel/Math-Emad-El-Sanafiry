@@ -23,7 +23,7 @@ export default function GuestClient({ code, configured }: { code: string; config
   }
   if (conn) return <LiveRoom token={conn.token} url={conn.url} gradeId={conn.gradeId} gradeTitle={conn.gradeTitle} teacher={false} guest onLeave={() => setConn(null)}/>;
   return <div className="app-page"><main className="app-container" style={{ maxWidth: 520 }}>
-    <div className="page-head"><span className="section-kicker"><span/> ضيف في حصة مباشرة</span><h1>منصة مستر عماد السنافيري</h1><p>اتدعيت تحضر حصة مباشرة بالكاميرا والصوت.</p></div>
+    <div className="page-head"><span className="section-kicker"><span/> ضيف في حصة مباشرة</span><h1>منصة مهندس فارس عماد</h1><p>اتدعيت تحضر حصة مباشرة بالكاميرا والصوت.</p></div>
     {!configured || !code ? <section className="panel live-empty"><Video size={30}/><h3>الرابط غير صالح</h3><p>اطلب من المدرس رابط دعوة جديد.</p></section>
       : <section className="panel live-lobby">
         <div className="form-field"><label htmlFor="g-name">اسمك</label><input id="g-name" className="input" value={name} maxLength={40} onChange={e => setName(e.target.value)} placeholder="مثال: د. أحمد"/></div>

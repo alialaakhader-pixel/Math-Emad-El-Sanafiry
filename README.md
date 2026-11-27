@@ -1,4 +1,4 @@
-# منصة مستر عماد السنافيري للرياضيات
+# منصة مهندس فارس عماد للرياضيات
 
 منصة رياضيات عربية RTL مبنية على **Next.js App Router + TypeScript + Tailwind CSS + PostgreSQL + Drizzle ORM**. تتضمن صفحة رئيسية دون بيانات مختلقة، حساب طالب ومدرس، محاضرات محمية، أكواد اشتراك، اختبارات وواجبات، معمل رياضيات، وإدارة محتوى.
 
@@ -19,7 +19,7 @@
 curl -X POST http://localhost:3000/api/auth/bootstrap \
   -H 'Content-Type: application/json' \
   -H "x-setup-secret: $TEACHER_SETUP_SECRET" \
-  -d '{"name":"مستر عماد السنافيري","email":"TEACHER_EMAIL","password":"STRONG_PASSWORD_12_CHARS_OR_MORE"}'
+  -d '{"name":"مهندس فارس عماد","email":"TEACHER_EMAIL","password":"STRONG_PASSWORD_12_CHARS_OR_MORE"}'
 ```
 
 بعد نجاح الطلب **احذف `TEACHER_SETUP_SECRET` من البيئة وأعد تشغيل الخادم**. يُرفض إنشاء مدرس ثانٍ عبر هذا المسار. سجّل دخول المدرس من `/auth?mode=login` ثم أضف صفوفاً ومحتوى من `/admin`. الاسم المعروض في الواجهة هو اسم المنصة الذي قدمه صاحب الطلب؛ النبذة وروابط التواصل يضيفها المدرس بنفسه.

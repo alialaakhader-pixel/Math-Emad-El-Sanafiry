@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 import { getCurrentUser } from "@/lib/auth";
 import PracticeClient from "@/components/PracticeClient";
 
-export const metadata: Metadata = { title: "تدرّب | منصة مستر عماد السنافيري" };
+export const metadata: Metadata = { title: "تدرّب | منصة مهندس فارس عماد" };
 export const dynamic = "force-dynamic";
 export default async function PracticePage() {
   const user = await getCurrentUser();

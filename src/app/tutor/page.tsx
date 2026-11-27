@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 import { getCurrentUser } from "@/lib/auth";
 import TutorClient from "@/components/TutorClient";
 
-export const metadata: Metadata = { title: "المعلم الذكي | منصة مستر عماد السنافيري" };
+export const metadata: Metadata = { title: "المعلم الذكي | منصة مهندس فارس عماد" };
 export const dynamic = "force-dynamic";
 export default async function TutorPage() {
   const user = await getCurrentUser();

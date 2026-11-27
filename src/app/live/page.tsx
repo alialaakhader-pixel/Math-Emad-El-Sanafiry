@@ -7,7 +7,7 @@ import { getCurrentUser } from "@/lib/auth";
 import { liveConfigured } from "@/lib/live";
 import LiveClient from "@/components/LiveClient";
 
-export const metadata: Metadata = { title: "الحصص المباشرة | منصة مستر عماد السنافيري" };
+export const metadata: Metadata = { title: "الحصص المباشرة | منصة مهندس فارس عماد" };
 export const dynamic = "force-dynamic";
 export default async function LivePage() {
   const user = await getCurrentUser();

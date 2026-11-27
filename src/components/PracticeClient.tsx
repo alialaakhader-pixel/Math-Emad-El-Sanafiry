@@ -67,7 +67,7 @@ export default function PracticeClient({ user }: { user: { name: string; role: s
   }
   async function share(kind: "copy" | "wa", regen = false) {
     const url = await parentLink(regen); if (!url) return;
-    if (kind === "wa") { window.open("https://wa.me/?text=" + encodeURIComponent("تقرير تقدّم " + user.name + " على منصة مستر عماد السنافيري:\n" + url), "_blank"); }
+    if (kind === "wa") { window.open("https://wa.me/?text=" + encodeURIComponent("تقرير تقدّم " + user.name + " على منصة مهندس فارس عماد:\n" + url), "_blank"); }
     else { try { await navigator.clipboard.writeText(url); } catch { /* clipboard blocked */ } setCopied(regen ? "تم إنشاء رابط جديد وإلغاء القديم، ونُسخ الرابط." : "تم نسخ الرابط."); setTimeout(() => setCopied(""), 3500); }
   }
 
