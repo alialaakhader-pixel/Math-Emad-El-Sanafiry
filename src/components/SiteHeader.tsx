@@ -42,7 +42,7 @@ export default function SiteHeader({ user: userProp }: { user?: { name: string; 
     const next = theme === "dark" ? "light" : "dark";
     setTheme(next); document.documentElement.dataset.theme = next; localStorage.setItem("emad-theme", next);
   }
-  const links = [{ href: "/#about", label: "عن المنصة" }, { href: "/#stages", label: "المراحل الدراسية" }, { href: "/#lectures", label: "المحاضرات" }, { href: "/exams", label: "الامتحانات" }, { href: "/lab", label: "معمل الرياضيات" }, { href: "/forum", label: "المنتدى" }, ...(user?.role === "teacher" ? [{ href: "/admin", label: "لوحة المدرس" }] : user?.role === "staff" ? [{ href: "/team", label: "لوحة الفريق" }] : [])];
+  const links = [{ href: "/#about", label: "عن المنصة" }, { href: "/#stages", label: "المراحل الدراسية" }, { href: "/#lectures", label: "المحاضرات" }, { href: "/exams", label: "الامتحانات" }, { href: "/lab", label: "معمل الرياضيات" }, { href: "/forum", label: "المنتدى" }, { href: "/live", label: "حصص لايف" }, ...(user?.role === "teacher" ? [{ href: "/admin", label: "لوحة المدرس" }] : user?.role === "staff" ? [{ href: "/team", label: "لوحة الفريق" }] : [])];
   return <header className="site-header">
     <div className="header-inner container-wide">
       <Brand />
