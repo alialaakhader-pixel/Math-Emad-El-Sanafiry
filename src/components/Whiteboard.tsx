@@ -2,7 +2,7 @@
 // Math whiteboard built on Excalidraw (MIT). Teacher draws; students follow live over the LiveKit data channel.
 import "@excalidraw/excalidraw/index.css";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Excalidraw, convertToExcalidrawElements } from "@excalidraw/excalidraw";
+import { Excalidraw, MainMenu, convertToExcalidrawElements } from "@excalidraw/excalidraw";
 import { RoomEvent, type RemoteParticipant } from "livekit-client";
 import { useRoomContext } from "@livekit/components-react";
 import MathInput from "./MathInput";
@@ -119,7 +119,9 @@ export default function Whiteboard({ isTeacher }: { isTeacher: boolean }) {
     setMathErr("");
     try {
       const api = apiRef.current; if (!api) return;
-      const { dataURL, width, height } = await latexToSvg(latex.trim() || "x");
+      const r0 = await latexToSvg(latex.trim() || "x");
+      const stw = apiRef.current.getAppState(); const maxW = Math.max(120, (stw.width / stw.zoom.value) * 0.8); const k = r0.width > maxW ? maxW / r0.width : 1;
+      const dataURL = r0.dataURL, width = r0.width * k, height = r0.height * k;
       const fileId = "m" + Math.random().toString(36).slice(2, 10);
       api.addFiles([{ id: fileId, mimeType: "image/svg+xml", dataURL, created: Date.now() }]);
       const st = api.getAppState(); const cx = (-st.scrollX + st.width / 2) / st.zoom.value, cy = (-st.scrollY + st.height / 2) / st.zoom.value;
@@ -129,7 +131,7 @@ export default function Whiteboard({ isTeacher }: { isTeacher: boolean }) {
     } catch (e) { setMathErr(e instanceof Error ? e.message : "تعذر إدراج المعادلة."); }
   }
 
-  return <div className="wb-wrap" dir="ltr">
+  return <div className="wb-wrap" dir="rtl">
     <div className="wb-bar" dir="rtl">
       {isTeacher ? <>
         <button type="button" className="wb-btn" onClick={() => setMathOpen(true)}>∑ معادلة</button>
@@ -149,7 +151,12 @@ export default function Whiteboard({ isTeacher }: { isTeacher: boolean }) {
         langCode="ar-SA"
         UIOptions={{ canvasActions: { loadScene: false, saveToActiveFile: false, export: false, toggleTheme: false, clearCanvas: isTeacher } } as never}
         initialData={{ appState: { currentItemStrokeWidth: 2, currentItemStrokeColor: "#1e1e1e" } } as never}
-      />
+      >
+        <MainMenu>
+          {isTeacher && <MainMenu.DefaultItems.ClearCanvas/>}
+          <MainMenu.DefaultItems.ChangeCanvasBackground/>
+        </MainMenu>
+      </Excalidraw>
     </div>
     {mathOpen && <div className="wb-modal" dir="rtl" onClick={e => { if (e.target === e.currentTarget) setMathOpen(false); }}>
       <div className="wb-modal-box"><h3>إدراج معادلة</h3><p className="small">اكتب بلوحة المفاتيح الرياضية أو بصيغة LaTeX.</p>
