@@ -8,8 +8,9 @@ import AuthClient from "@/components/AuthClient";
 
 export const metadata: Metadata = { title: "الدخول وإنشاء حساب" };
 export const dynamic = "force-dynamic";
-export default async function AuthPage({ searchParams }: { searchParams: Promise<{ mode?: string; token?: string; error?: string }> }) {
+export default async function AuthPage({ searchParams }: { searchParams: Promise<{ mode?: string; token?: string; error?: string; teacher?: string }> }) {
   const params = await searchParams;
+  if (params.teacher === "1") redirect("/auth/teacher");
   const user = await getCurrentUser();
   if (user && params.mode !== "reset") redirect(user.role === "teacher" ? "/admin" : user.role === "staff" ? "/team" : "/dashboard");
   const allGrades = await db.select({ id: grades.id, title: grades.title }).from(grades).where(eq(grades.published, true)).orderBy(grades.sortOrder);

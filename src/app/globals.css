@@ -278,3 +278,10 @@ div.live-room[data-lk-theme]{position:fixed!important;inset:0!important;z-index:
 @media(max-width:600px){.pa-row{flex-direction:column;align-items:stretch}.pa-row .list-row-actions{justify-content:flex-start}.pa-listhead .input{max-width:none}}
 
 .admin-sidebar a{width:100%;display:flex;align-items:center;gap:10px;color:var(--muted);border-radius:9px;padding:11px 12px;font-size:12px;font-weight:600}.admin-sidebar a:hover{background:rgba(154,124,237,.13);color:var(--text)}@media(max-width:900px){.admin-sidebar a{width:auto;flex-shrink:0}}
+
+/* teacher sign-in */
+.tl-card .tl-badge{width:56px;height:56px;border-radius:16px;display:grid;place-items:center;margin:6px 0 14px;color:#fff;background:linear-gradient(135deg,#7c5cf0,#35b6e8);box-shadow:0 10px 30px rgba(124,92,240,.35)}
+.tl-card .input.tl-bad{border-color:rgba(233,109,118,.6);box-shadow:0 0 0 3px rgba(233,109,118,.12)}
+.tl-card .btn-large{width:100%;justify-content:center}
+.auth-teacher-link{display:flex;align-items:center;justify-content:center;gap:8px;margin-top:14px;padding:11px 14px;border:1px dashed var(--line-strong);border-radius:12px;color:var(--muted);font-size:13px;font-weight:700}
+.auth-teacher-link:hover{border-color:var(--violet);color:var(--text);background:rgba(154,124,237,.1)}
