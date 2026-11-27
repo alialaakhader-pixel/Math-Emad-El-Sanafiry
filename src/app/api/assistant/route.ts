@@ -26,7 +26,7 @@ export async function POST(request: Request) {
   if (!aiConfigured()) return jsonError("المساعد غير متاح حتى يتم ربط خدمة الذكاء الاصطناعي.", 503);
   if (!await allowAttempt(`assistant:${user.id}`, 25, 60 * 60 * 1000)) return jsonError("وصلت إلى الحد المؤقت. حاول لاحقاً.", 429);
   try {
-    const { question, lectureId, tutor } = await request.json();
+    const { question, lectureId, tutor, history } = await request.json();
     const sysPrompt = tutor === true ? TUTOR_AR + (user.gradeId ? await gradeNote(user.gradeId) : "") : SYSTEM_AR;
     if (typeof question !== "string" || question.trim().length < 3 || question.length > 2000) return jsonError("اكتب سؤالاً رياضياً من 3 إلى 2000 حرف.");
     let context = "";
@@ -45,7 +45,7 @@ export async function POST(request: Request) {
       const headers: Record<string, string> = { "Content-Type": "application/json" };
       if (process.env.ELLOOL_AI_KEY) headers.Authorization = `Bearer ${process.env.ELLOOL_AI_KEY}`;
       headers.Origin = process.env.ELLOOL_AI_ORIGIN || ELLOOL_ORIGIN; headers.Referer = `${headers.Origin}/`;
-      const response = await fetch(`${base}/chat/completions`, { method: "POST", headers, body: JSON.stringify({ model: process.env.ELLOOL_AI_MODEL || "@cf/meta/llama-3.3-70b-instruct-fp8-fast", messages: [{ role: "system", content: sysPrompt }, { role: "user", content: userText }], max_tokens: 1200, temperature: 0.2, stream: false }), signal: AbortSignal.timeout(45000) });
+      const response = await fetch(`${base}/chat/completions`, { method: "POST", headers, body: JSON.stringify({ model: process.env.ELLOOL_AI_MODEL || "@cf/meta/llama-3.3-70b-instruct-fp8-fast", messages: [{ role: "system", content: sysPrompt }, ...(tutor === true && Array.isArray(history) ? history.slice(-4).flatMap((h: { q?: unknown; a?: unknown }) => typeof h?.q === "string" && typeof h?.a === "string" ? [{ role: "user", content: h.q.slice(0, 600) }, { role: "assistant", content: h.a.slice(0, 1200) }] : []) : []), { role: "user", content: userText }], max_tokens: 1200, temperature: 0.2, stream: false }), signal: AbortSignal.timeout(45000) });
       if (!response.ok) { console.error("Ellool AI error", response.status); return jsonError("تعذر الاتصال بخدمة Ellool AI الآن.", 503); }
       answer = parseAI(await response.text()).trim();
     } else {
