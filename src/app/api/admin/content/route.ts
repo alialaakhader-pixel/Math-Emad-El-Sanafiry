@@ -1,3 +1,4 @@
+import { notifyGrade } from "@/lib/notify";
 import { eq, sql } from "drizzle-orm";
 import { db, pool } from "@/db";
 import { adminLogs, exams, grades, lectures, questions } from "@/db/schema";
@@ -54,6 +55,7 @@ export async function POST(request: Request) {
       const [{ max }] = await db.select({ max: sql<number>`coalesce(max(${lectures.sortOrder}), 0)` }).from(lectures).where(eq(lectures.gradeId, gradeId));
       const rows = await db.insert(lectures).values(parsed.ok.map((l, i) => ({ gradeId, title: l.title, description: l.description, videoUrl: l.videoUrl, published, sortOrder: Number(max) + i + 1 }))).returning({ id: lectures.id });
       await log(user.id, "quick_lectures", `${rows.length} lectures`);
+      if (published) await notifyGrade(gradeId, "محاضرة جديدة في صفك", parsed.ok.length === 1 ? `«${parsed.ok[0].title}» اتنشرت.` : `${parsed.ok.length} محاضرات جديدة اتنشرت.`);
       return Response.json({ ok: true, ids: rows.map(r => r.id), message: `تمت إضافة ${rows.length} محاضرة${published ? " ومنشورة" : " كمسودة"}.` });
     }
     const kind = b.kind === "homework" ? "homework" as const : "exam" as const;
@@ -71,6 +73,7 @@ export async function POST(request: Request) {
         return e.id;
       });
       await log(user.id, "bulk_exam", `${parsed.ok.length} questions`);
+      if (published) await notifyGrade(gradeId, base.kind === "homework" ? "واجب جديد في صفك" : "امتحان جديد في صفك", `«${title}» اتنشر وجاهز تحله.`);
       return Response.json({ ok: true, examId, message: `تم إنشاء الامتحان بـ ${parsed.ok.length} سؤال${published ? " ومنشور" : " كمسودة"}.` });
     }
     if (action === "autoExam") {
@@ -85,6 +88,7 @@ export async function POST(request: Request) {
         return e.id;
       });
       await log(user.id, "auto_exam", `${rows.length} questions`);
+      if (published) await notifyGrade(gradeId, base.kind === "homework" ? "واجب جديد في صفك" : "امتحان جديد في صفك", `«${title}» اتنشر وجاهز تحله.`);
       return Response.json({ ok: true, examId, message: `تم تجميع امتحان من ${rows.length} سؤال${rows.length < count ? ` (البنك فيه ${rows.length} بس للمواضيع دي)` : ""}${published ? " ومنشور" : " كمسودة"}. تقدر تعدله من «الاختبارات والواجبات».` });
     }
     return jsonError("إجراء غير معروف.", 404);

@@ -2,6 +2,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
+import NotifBell from "@/components/NotifBell";
 import { ArrowUpLeft, Briefcase, GraduationCap, Menu, Moon, Sun, X } from "lucide-react";
 
 export function Brand({ compact = false }: { compact?: boolean }) {
@@ -42,14 +43,15 @@ export default function SiteHeader({ user: userProp }: { user?: { name: string; 
     const next = theme === "dark" ? "light" : "dark";
     setTheme(next); document.documentElement.dataset.theme = next; localStorage.setItem("emad-theme", next);
   }
-  const links = [{ href: "/#about", label: "عن المنصة" }, { href: "/#stages", label: "المراحل الدراسية" }, { href: "/#lectures", label: "المحاضرات" }, { href: "/exams", label: "الامتحانات" }, { href: "/lab", label: "معمل الرياضيات" }, { href: "/forum", label: "المنتدى" }, { href: "/live", label: "حصص لايف" }, { href: "/practice", label: "تدرّب" }, { href: "/solve", label: "حلّال المسائل" }, { href: "/tutor", label: "المعلم الذكي" }, { href: "/studio", label: "استوديو الصور" }, ...(user?.role === "teacher" ? [{ href: "/admin", label: "لوحة المدرس" }] : user?.role === "staff" ? [{ href: "/team", label: "لوحة الفريق" }] : [])];
-  const MORE = ["/#about", "/#stages", "/forum", "/tutor", "/studio"];
+  const links = [{ href: "/#about", label: "عن المنصة" }, { href: "/#stages", label: "المراحل الدراسية" }, { href: "/#lectures", label: "المحاضرات" }, { href: "/exams", label: "الامتحانات" }, { href: "/leaderboard", label: "المتصدرين" }, { href: "/lab", label: "معمل الرياضيات" }, { href: "/forum", label: "المنتدى" }, { href: "/live", label: "حصص لايف" }, { href: "/practice", label: "تدرّب" }, { href: "/solve", label: "حلّال المسائل" }, { href: "/tutor", label: "المعلم الذكي" }, { href: "/studio", label: "استوديو الصور" }, ...(user?.role === "teacher" ? [{ href: "/admin", label: "لوحة المدرس" }] : user?.role === "staff" ? [{ href: "/team", label: "لوحة الفريق" }] : [])];
+  const MORE = ["/leaderboard", "/#about", "/#stages", "/forum", "/tutor", "/studio"];
   return <header className="site-header">
     <div className="header-inner container-wide">
       <Brand />
       <nav className="desktop-nav" aria-label="التنقل الرئيسي">{links.filter(l => !MORE.includes(l.href) && l.href !== "/admin" && l.href !== "/team").map(link => <Link key={link.href} href={link.href}>{link.label}</Link>)}<details className="nav-more"><summary>المزيد</summary><div className="nav-more-list">{links.filter(l => MORE.includes(l.href)).map(link => <Link key={link.href} href={link.href}>{link.label}</Link>)}</div></details></nav>
       <div className="header-actions">
         {(user?.role === "teacher" || user?.role === "staff") && <Link className="teacher-pill hide-m" href={user.role === "teacher" ? "/admin" : "/team"}><span aria-hidden="true">🎓</span> {user.role === "teacher" ? "لوحة المدرس" : "لوحة الفريق"}</Link>}
+        {user?.role === "student" && <NotifBell/>}
         <button type="button" className="icon-button theme-toggle" onClick={toggleTheme} aria-label={theme === "dark" ? "تفعيل الوضع النهاري" : "تفعيل الوضع الليلي"} title={theme === "dark" ? "الوضع النهاري" : "الوضع الليلي"}>{theme === "dark" ? <Sun size={19}/> : <Moon size={19}/>}</button>
         {!user && <><Link className="header-login" href="/auth?mode=login">دخول</Link><Link className="reg-btn reg-student" href="/auth?mode=register"><GraduationCap size={16}/>تسجيل الطلاب</Link><Link className="reg-btn reg-teacher" href="/auth/teacher"><Briefcase size={16}/>تسجيل المدرس</Link></>}
         {user?.role === "student" && <><Link className="header-login" href="/dashboard">لوحتي</Link></>}

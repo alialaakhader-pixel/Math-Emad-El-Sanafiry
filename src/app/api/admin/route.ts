@@ -2,6 +2,7 @@ import { randomBytes } from "node:crypto";
 import { and, desc, eq, inArray, isNull, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { activationCodes, adminLogs, announcements, assets, attemptAnswers, attempts, exams, grades, lectures, notifications, questions, siteSettings, subscriptions, terms, units, users } from "@/db/schema";
+import { notifyGrade } from "@/lib/notify";
 import { CATALOG } from "@/lib/catalog";
 import { digest, getCurrentUser, jsonError, sameOrigin } from "@/lib/auth";
 
@@ -153,8 +154,10 @@ export async function POST(request: Request) {
         if (!idOk(b.gradeId) || !txt(b.title, 200)) return jsonError("حدد الصف واكتب عنوان التقييم.");
         const value = { gradeId: b.gradeId, title: txt(b.title, 200), description: txt(b.description, 5000), kind: b.kind === "homework" ? "homework" as const : "exam" as const, durationMinutes: Math.min(300, Math.max(1, pos(b.durationMinutes, 30))), maxAttempts: Math.min(20, Math.max(1, pos(b.maxAttempts, 1))), startsAt: dateOrNull(b.startsAt), endsAt: dateOrNull(b.endsAt), published: bool(b.published), showReview: bool(b.showReview) };
         if (value.startsAt && value.endsAt && value.endsAt <= value.startsAt) return jsonError("تاريخ النهاية يجب أن يكون بعد البداية.");
-        if (action === "createExam") await db.insert(exams).values(value);
-        else { if (!idOk(id)) return jsonError("معرّف غير صالح."); await db.update(exams).set(value).where(eq(exams.id, id)); }
+        let examNew = false;
+        if (action === "createExam") { await db.insert(exams).values(value); examNew = value.published; }
+        else { if (!idOk(id)) return jsonError("معرّف غير صالح."); const [was] = await db.select({ published: exams.published }).from(exams).where(eq(exams.id, id)).limit(1); await db.update(exams).set(value).where(eq(exams.id, id)); examNew = value.published && !was?.published; }
+        if (examNew) await notifyGrade(value.gradeId, value.kind === "homework" ? "واجب جديد في صفك" : "امتحان جديد في صفك", `«${value.title}» اتنشر وجاهز تحله.`);
         break;
       }
       case "deleteExam": {
