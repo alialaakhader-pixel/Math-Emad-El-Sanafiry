@@ -4,6 +4,7 @@ import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import NotifBell from "@/components/NotifBell";
 import TeacherBell from "@/components/TeacherBell";
+import SiteSearch from "@/components/SiteSearch";
 import { ArrowUpLeft, Briefcase, GraduationCap, Menu, Moon, Sun, X } from "lucide-react";
 
 export function Brand({ compact = false }: { compact?: boolean }) {
@@ -54,6 +55,7 @@ export default function SiteHeader({ user: userProp }: { user?: { name: string; 
         {(user?.role === "teacher" || user?.role === "staff") && <Link className="teacher-pill hide-m" href={user.role === "teacher" ? "/admin" : "/team"}><span aria-hidden="true">🎓</span> {user.role === "teacher" ? "لوحة المدرس" : "لوحة الفريق"}</Link>}
         {user?.role === "student" && <NotifBell/>}
         {user?.role === "teacher" && <TeacherBell/>}
+        <SiteSearch/>
         <button type="button" className="icon-button theme-toggle" onClick={toggleTheme} aria-label={theme === "dark" ? "تفعيل الوضع النهاري" : "تفعيل الوضع الليلي"} title={theme === "dark" ? "الوضع النهاري" : "الوضع الليلي"}>{theme === "dark" ? <Sun size={19}/> : <Moon size={19}/>}</button>
         {!user && <><Link className="header-login" href="/auth?mode=login">دخول</Link><Link className="reg-btn reg-student" href="/auth?mode=register"><GraduationCap size={16}/>تسجيل الطلاب</Link><Link className="reg-btn reg-teacher" href="/auth/teacher"><Briefcase size={16}/>تسجيل المدرس</Link></>}
         {user?.role === "student" && <><Link className="header-login" href="/dashboard">لوحتي</Link></>}

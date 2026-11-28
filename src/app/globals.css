@@ -446,3 +446,13 @@ html[data-theme="light"] .chat-time{color:#667781}.chat-tick{color:#8fd6ff}
 .site-footer a,.text-link,.scroll-cue,.app-back,.auth-link,.auth-card a{display:inline-flex;align-items:center;min-height:40px}
 .inline-action{min-width:40px;min-height:40px}
 }
+.ssearch-back{position:fixed;inset:0;z-index:300;background:rgba(5,8,20,.6);backdrop-filter:blur(4px);display:flex;justify-content:center;align-items:flex-start;padding:76px 14px 14px}
+.ssearch{width:100%;max-width:520px;background:var(--surface,#12172b);color:var(--text);border:1px solid var(--line);border-radius:16px;padding:12px;box-shadow:0 20px 60px rgba(0,0,0,.5);max-height:calc(100dvh - 100px);display:flex;flex-direction:column}
+.ssearch-row{display:flex;align-items:center;gap:8px;color:var(--muted)}
+.ssearch-row input{flex:1;min-width:0;background:transparent;border:0;outline:0;color:var(--text);font:inherit;font-size:16px;min-height:44px}
+.ssearch-list{overflow:auto;margin-top:8px;display:flex;flex-direction:column;gap:2px}
+.ssearch-list small{color:var(--muted);font-size:11px;padding:8px 8px 2px}
+.ssearch-list a{display:flex;justify-content:space-between;gap:8px;padding:12px 10px;border-radius:10px;font-size:14px;min-height:44px;align-items:center}
+.ssearch-list a:hover,.ssearch-list a:focus{background:var(--surface2,rgba(255,255,255,.07))}
+.ssearch-list em{font-style:normal;font-size:11px;color:#22c55e;white-space:nowrap}
+.ssearch-list p{padding:14px 8px;color:var(--muted);font-size:13px}
