@@ -28,3 +28,20 @@ export function ensureSubmissions() {
     create index if not exists hs_status_idx on homework_submissions(status, updated_at desc)`).catch(e => { ready = null; throw e; });
   return ready;
 }
+
+let chatReady: Promise<unknown> | null = null;
+export function ensureChat() {
+  chatReady ??= pool.query(`create table if not exists chat_messages(
+    id uuid primary key default gen_random_uuid(),
+    grade_id uuid not null references grades(id) on delete cascade,
+    user_id uuid not null references users(id) on delete cascade,
+    body text not null,
+    created_at timestamptz not null default now());
+    create index if not exists chat_grade_idx on chat_messages(grade_id, created_at desc);
+    create table if not exists chat_flags(
+    message_id uuid not null references chat_messages(id) on delete cascade,
+    user_id uuid not null references users(id) on delete cascade,
+    created_at timestamptz not null default now(),
+    primary key(message_id,user_id))`).catch(e => { chatReady = null; throw e; });
+  return chatReady;
+}

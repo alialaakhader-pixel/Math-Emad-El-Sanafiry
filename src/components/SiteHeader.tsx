@@ -43,8 +43,8 @@ export default function SiteHeader({ user: userProp }: { user?: { name: string; 
     const next = theme === "dark" ? "light" : "dark";
     setTheme(next); document.documentElement.dataset.theme = next; localStorage.setItem("emad-theme", next);
   }
-  const links = [{ href: "/#about", label: "عن المنصة" }, { href: "/#stages", label: "المراحل الدراسية" }, { href: "/#lectures", label: "المحاضرات" }, { href: "/exams", label: "الامتحانات" }, { href: "/leaderboard", label: "المتصدرين" }, { href: "/lab", label: "معمل الرياضيات" }, { href: "/forum", label: "المنتدى" }, { href: "/live", label: "حصص لايف" }, { href: "/practice", label: "تدرّب" }, { href: "/solve", label: "حلّال المسائل" }, { href: "/tutor", label: "المعلم الذكي" }, { href: "/studio", label: "استوديو الصور" }, ...(user?.role === "teacher" ? [{ href: "/admin", label: "لوحة المدرس" }] : user?.role === "staff" ? [{ href: "/team", label: "لوحة الفريق" }] : [])];
-  const MORE = ["/leaderboard", "/#about", "/#stages", "/forum", "/tutor", "/studio"];
+  const links = [{ href: "/#about", label: "عن المنصة" }, { href: "/#stages", label: "المراحل الدراسية" }, { href: "/#lectures", label: "المحاضرات" }, { href: "/exams", label: "الامتحانات" }, { href: "/leaderboard", label: "المتصدرين" }, { href: "/chat", label: "شات الصف" }, { href: "/lab", label: "معمل الرياضيات" }, { href: "/forum", label: "المنتدى" }, { href: "/live", label: "حصص لايف" }, { href: "/practice", label: "تدرّب" }, { href: "/solve", label: "حلّال المسائل" }, { href: "/tutor", label: "المعلم الذكي" }, { href: "/studio", label: "استوديو الصور" }, ...(user?.role === "teacher" ? [{ href: "/admin", label: "لوحة المدرس" }] : user?.role === "staff" ? [{ href: "/team", label: "لوحة الفريق" }] : [])];
+  const MORE = ["/leaderboard", "/chat", "/#about", "/#stages", "/forum", "/tutor", "/studio"];
   return <header className="site-header">
     <div className="header-inner container-wide">
       <Brand />
