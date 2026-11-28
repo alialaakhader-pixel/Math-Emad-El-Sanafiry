@@ -160,6 +160,25 @@ export async function POST(request: Request) {
         if (examNew) await notifyGrade(value.gradeId, value.kind === "homework" ? "واجب جديد في صفك" : "امتحان جديد في صفك", `«${value.title}» اتنشر وجاهز تحله.`);
         break;
       }
+      case "cloneExam": {
+        if (!idOk(id)) return jsonError("معرّف غير صالح.");
+        await ensureQuestionTopic();
+        const target = idOk(b.gradeId) ? b.gradeId : null;
+        const r = await pool.query("insert into exams (grade_id,title,description,kind,duration_minutes,max_attempts,published,show_review) select coalesce($2::uuid,grade_id), left('نسخة - '||title,200), description, kind, duration_minutes, max_attempts, false, show_review from exams where id=$1 returning id", [id, target]);
+        if (!r.rows[0]) return jsonError("الامتحان مش موجود.");
+        await pool.query("insert into questions (exam_id,prompt,kind,options,correct_index,points,sort_order,topic) select $2,prompt,kind,options,correct_index,points,sort_order,topic from questions where exam_id=$1", [id, r.rows[0].id]);
+        break;
+      }
+      case "publishAllDrafts": {
+        const drafts = await db.select().from(exams).where(eq(exams.published, false));
+        for (const d of drafts) {
+          const [{ n }] = (await pool.query("select count(*)::int n from questions where exam_id=$1", [d.id])).rows;
+          if (!n) continue;
+          await db.update(exams).set({ published: true }).where(eq(exams.id, d.id));
+          await notifyGrade(d.gradeId, d.kind === "homework" ? "واجب جديد في صفك" : "امتحان جديد في صفك", `«${d.title}» اتنشر وجاهز تحله.`);
+        }
+        break;
+      }
       case "deleteExam": {
         if (!idOk(id)) return jsonError("معرّف غير صالح.");
         await db.delete(exams).where(eq(exams.id, id));
