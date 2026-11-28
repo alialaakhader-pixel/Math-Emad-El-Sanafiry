@@ -24,7 +24,7 @@ function candidates(q: string): string[] {
 function clean(e: string) { return e.replace(/\s+/g, "").replace(/^[+*\/^=]+|[+\-*\/^=]+$/g, "").replace(/^f\(x\)=|^y=/i, ""); }
 
 function show(v: string) {
-  return v.replace(/(?<![a-z])x(?![a-z])/g, "س").replace(/\^2/g, "²").replace(/\^3/g, "³").replace(/\^\(?(-?\d+)\)?/g, "^$1").replace(/(\d)\*س/g, "$1س").replace(/\*/g, "·").replace(/log\(/g, "ln(").replace(/\be\^/g, "e^");
+  return "\u202D" + v.replace(/(?<![a-z])x(?![a-z])/g, "س").replace(/\^2/g, "²").replace(/\^3/g, "³").replace(/\^\(?(-?\d+)\)?/g, "^$1").replace(/(\d)\*س/g, "$1س").replace(/\*/g, "·").replace(/log\(/g, "ln(").replace(/\be\^/g, "e^") + "\u202C";
 }
 const near = (a: number, b: number) => Number.isFinite(a) && Number.isFinite(b) && Math.abs(a - b) <= 1e-5 * Math.max(1, Math.abs(a), Math.abs(b));
 const ev = (expr: string, x: number) => { const v = math.evaluate(expr.replace(/\^/g, "^").replace(/\blog\(/g, "log("), { x }); return typeof v === "number" ? v : NaN; };
