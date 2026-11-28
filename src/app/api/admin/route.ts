@@ -1,8 +1,8 @@
 import { randomBytes } from "node:crypto";
 import { and, desc, eq, inArray, isNull, sql } from "drizzle-orm";
-import { db } from "@/db";
+import { db, pool } from "@/db";
 import { activationCodes, adminLogs, announcements, assets, attemptAnswers, attempts, exams, grades, lectures, notifications, questions, siteSettings, subscriptions, terms, units, users } from "@/db/schema";
-import { notifyGrade } from "@/lib/notify";
+import { ensureQuestionTopic, notifyGrade } from "@/lib/notify";
 import { CATALOG } from "@/lib/catalog";
 import { digest, getCurrentUser, jsonError, sameOrigin } from "@/lib/auth";
 
@@ -171,7 +171,8 @@ export async function POST(request: Request) {
         const options = Array.isArray(b.options) ? b.options.map((o) => txt(o, 500)).filter(Boolean).slice(0, 6) : [];
         const correctIndex = pos(b.correctIndex);
         if (kind === "mcq" && (options.length < 2 || correctIndex >= options.length)) return jsonError("أضف خيارين على الأقل وحدد الإجابة الصحيحة.");
-        await db.insert(questions).values({ examId: b.examId, prompt: txt(b.prompt, 3000), kind, options: kind === "mcq" ? options : [], correctIndex: kind === "mcq" ? correctIndex : null, points: Math.min(100, Math.max(1, pos(b.points, 1))), sortOrder: pos(b.sortOrder) });
+        const [nq] = await db.insert(questions).values({ examId: b.examId, prompt: txt(b.prompt, 3000), kind, options: kind === "mcq" ? options : [], correctIndex: kind === "mcq" ? correctIndex : null, points: Math.min(100, Math.max(1, pos(b.points, 1))), sortOrder: pos(b.sortOrder) }).returning({ id: questions.id });
+        if (txt(b.topic, 120)) { await ensureQuestionTopic(); await pool.query("update questions set topic=$1 where id=$2", [txt(b.topic, 120), nq.id]); }
         break;
       }
       case "deleteQuestion": {

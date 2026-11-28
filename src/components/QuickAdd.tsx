@@ -14,7 +14,7 @@ export default function QuickAdd({ grades, onDone }: { grades: Grade[]; onDone: 
   const [gradeId, setGradeId] = useState("");
   const [title, setTitle] = useState(""); const [video, setVideo] = useState(""); const [notes, setNotes] = useState(""); const [file, setFile] = useState<File | null>(null);
   const [text, setText] = useState(""); const [kind, setKind] = useState("exam"); const [duration, setDuration] = useState(30); const [attempts, setAttempts] = useState(1);
-  const [count, setCount] = useState(10); const [topics, setTopics] = useState<{ topic: string; n: number }[]>([]); const [picked, setPicked] = useState<string[]>([]);
+  const [topic, setTopic] = useState(""); const [count, setCount] = useState(10); const [topics, setTopics] = useState<{ topic: string; n: number }[]>([]); const [picked, setPicked] = useState<string[]>([]);
   const [publish, setPublish] = useState(false);
   const [preview, setPreview] = useState<Preview>(null); const [busy, setBusy] = useState(false); const [msg, setMsg] = useState(""); const [err, setErr] = useState(false);
   useEffect(() => {
@@ -30,7 +30,7 @@ export default function QuickAdd({ grades, onDone }: { grades: Grade[]; onDone: 
     if (mode === "lecture") return { ...base, action: "quickLecture", title, videoUrl: video, description: notes };
     if (mode === "lectures") return { ...base, action: "bulkLectures", text };
     const exam = { ...base, title, kind, durationMinutes: duration, maxAttempts: attempts };
-    return mode === "auto" ? { ...exam, action: "autoExam", count, topics: picked } : { ...exam, action: "bulkExam", text };
+    return mode === "auto" ? { ...exam, action: "autoExam", count, topics: picked } : { ...exam, action: "bulkExam", text, topic };
   };
   async function run(dryRun: boolean) {
     if (!gradeId) { setErr(true); setMsg("اختار الصف الأول."); return; }
@@ -69,6 +69,7 @@ export default function QuickAdd({ grades, onDone }: { grades: Grade[]; onDone: 
       <div className="form-field"><label>المدة بالدقائق</label><input className="input" type="number" min={1} max={300} value={duration} onChange={e => setDuration(+e.target.value)}/></div>
       <div className="form-field"><label>المحاولات</label><input className="input" type="number" min={1} max={20} value={attempts} onChange={e => setAttempts(+e.target.value)}/></div>
     </div>}
+    {mode === "exam" && <div className="form-field"><label htmlFor="qa-topic">الموضوع (اختياري)</label><input id="qa-topic" className="input" maxLength={120} value={topic} onChange={e => setTopic(e.target.value)} placeholder="مثلا: النهايات. بيدخل في تحليل ضعف الطالب"/></div>}
     {mode === "auto" && <>
       <div className="form-field"><label>عدد الأسئلة</label><input className="input" type="number" min={1} max={60} value={count} onChange={e => setCount(+e.target.value)}/></div>
       <div className="form-field"><label>المواضيع {picked.length ? `(${picked.length} مختار)` : "(سيبها فاضية لكل المواضيع)"}</label>

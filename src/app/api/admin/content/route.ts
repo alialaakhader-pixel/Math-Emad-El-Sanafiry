@@ -72,6 +72,8 @@ export async function POST(request: Request) {
         await tx.insert(questions).values(parsed.ok.map((p, i) => ({ examId: e.id, prompt: p.q, kind: "mcq" as const, options: p.options, correctIndex: p.correct, points: 1, sortOrder: i })));
         return e.id;
       });
+      const bt = txt(b.topic, 120);
+      if (bt) { await ensureQuestionTopic(); await pool.query("update questions set topic=$1 where exam_id=$2", [bt, examId]); }
       await log(user.id, "bulk_exam", `${parsed.ok.length} questions`);
       if (published) await notifyGrade(gradeId, base.kind === "homework" ? "واجب جديد في صفك" : "امتحان جديد في صفك", `«${title}» اتنشر وجاهز تحله.`);
       return Response.json({ ok: true, examId, message: `تم إنشاء الامتحان بـ ${parsed.ok.length} سؤال${published ? " ومنشور" : " كمسودة"}.` });
