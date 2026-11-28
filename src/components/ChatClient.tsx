@@ -2,7 +2,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Check, ImagePlus, X, Flag, Send, Trash2, ShieldCheck } from "lucide-react";
 
-type M = { img?: boolean; sid: string; id: string; body: string; at: string; mine: boolean; name: string; grade: string | null; flags?: number; iFlagged: boolean };
+type M = { muted?: boolean; img?: boolean; sid: string; id: string; body: string; at: string; mine: boolean; name: string; grade: string | null; flags?: number; iFlagged: boolean };
 type Grade = { id: string; title: string };
 const COLORS = ["#7ee0c3", "#f2a65a", "#7fb5ff", "#e58fd0", "#e8d36a", "#a99bff", "#ff8a8a", "#6fd3e8"];
 const colorOf = (sid: string) => COLORS[parseInt(sid.slice(0, 4), 16) % COLORS.length];
@@ -44,6 +44,7 @@ export default function ChatClient({ teacher = false, grades = [] }: { teacher?:
   }
   async function flag(id: string) { const { d } = await post({ action: "flag", id }); setInfo(d.message || d.error || ""); setMsgs(x => x.map(m => m.id === id ? { ...m, iFlagged: true } : m)); }
   async function del(id: string) { if (!confirm("تحذف الرسالة دي؟")) return; await post({ action: "delete", id }); load(); }
+  async function mute(id: string, on: boolean) { await post({ action: on ? "mute" : "unmute", id }); load(); }
   async function clear(id: string) { await post({ action: "clearFlags", id }); load(); }
   if (!teacher && needGrade) return <div className="panel empty-state"><h3>اختار صفك الأول</h3><p>الشات متاح لطلاب صفك بس.</p><a className="btn btn-primary" href="/welcome">اختار صفك</a></div>;
   return <div className="chat-shell">
@@ -68,7 +69,7 @@ export default function ChatClient({ teacher = false, grades = [] }: { teacher?:
             {head && !m.mine && <div className="chat-name" style={{ color: colorOf(m.sid) }}>{m.name}{teacher && m.grade ? <small> · {m.grade}</small> : null}</div>}
             {head && m.mine && teacher && <div className="chat-name" style={{ color: colorOf(m.sid) }}>{m.name}</div>}
             {m.img && <img className="chat-img" loading="lazy" src={`/api/chat/image/${m.id}`} alt="صورة" onClick={e => { e.stopPropagation(); setZoom(m.id); }}/>}{m.body && <span className="chat-body">{m.body}</span>}<span className="chat-time">{t(m.at)}{m.mine && <Check size={12} className="chat-tick"/>}</span>
-            {teacher && <div className="chat-actions">{!!m.flags && <><span className="tag warn">{m.flags} بلاغ</span><button className="inline-action" onClick={() => clear(m.id)}>تجاهل البلاغ</button></>}<button className="inline-action danger" onClick={() => del(m.id)}><Trash2 size={13}/> حذف</button></div>}
+            {teacher && <div className="chat-actions">{!!m.flags && <><span className="tag warn">{m.flags} بلاغ</span><button className="inline-action" onClick={() => clear(m.id)}>تجاهل البلاغ</button></>}<button className="inline-action danger" onClick={() => del(m.id)}><Trash2 size={13}/> حذف</button><button className="inline-action" onClick={() => mute(m.id, !m.muted)}>{m.muted ? "فك الكتم" : "اكتم الطالب 24 ساعة"}</button></div>}
             {open && canFlag && <div className="chat-menu" onClick={e => e.stopPropagation()}><button className="inline-action" disabled={m.iFlagged} onClick={() => { flag(m.id); setSel(null); }}><Flag size={13}/> {m.iFlagged ? "اتبلّغ" : "بلّغ المدرس عن الرسالة"}</button></div>}
           </div>
         </div>;

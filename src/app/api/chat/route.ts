@@ -23,7 +23,7 @@ export async function GET(request: Request) {
   const { rows } = await pool.query(
     `select * from (
        select m.id, m.body, (m.image is not null) has_img, m.created_at, m.user_id, substr(md5(m.user_id::text),1,8) sid, u.name, g.title grade, g.id grade_id,
-              (select count(*)::int from chat_flags f where f.message_id=m.id) flags,
+              (select count(*)::int from chat_flags f where f.message_id=m.id) flags, exists(select 1 from chat_mutes cm where cm.user_id=m.user_id and cm.until > now()) muted,
               exists(select 1 from chat_flags f where f.message_id=m.id and f.user_id=$1) i_flagged
        from chat_messages m join users u on u.id=m.user_id left join grades g on g.id=m.grade_id
        where ($2::uuid is null or m.grade_id=$2) and (not $3 or exists(select 1 from chat_flags f where f.message_id=m.id))
@@ -32,7 +32,7 @@ export async function GET(request: Request) {
   const fl = user.role === "teacher" ? (await pool.query("select count(*)::int n from chat_messages m where exists(select 1 from chat_flags f where f.message_id=m.id)")).rows[0].n : 0;
   return Response.json({
     grade: gt, flaggedTotal: fl, me: user.id,
-    messages: rows.map(r => ({ id: r.id, body: r.body, at: r.created_at, mine: r.user_id === user.id, img: r.has_img, sid: r.sid, name: user.role === "teacher" ? r.name : first(r.name), grade: r.grade, flags: user.role === "teacher" ? r.flags : undefined, iFlagged: r.i_flagged })),
+    messages: rows.map(r => ({ id: r.id, body: r.body, at: r.created_at, mine: r.user_id === user.id, muted: user.role === "teacher" ? r.muted : undefined, img: r.has_img, sid: r.sid, name: user.role === "teacher" ? r.name : first(r.name), grade: r.grade, flags: user.role === "teacher" ? r.flags : undefined, iFlagged: r.i_flagged })),
   });
 }
 
@@ -49,12 +49,22 @@ export async function POST(request: Request) {
     await pool.query("delete from chat_messages where id=$1", [mid]);
     return Response.json({ ok: true });
   }
+  if (b.action === "mute" || b.action === "unmute") {
+    if (user.role !== "teacher" || !mid) return jsonError("غير مسموح.", 403);
+    const o = await pool.query("select user_id from chat_messages where id=$1", [mid]);
+    if (!o.rows[0]) return jsonError("الرسالة مش موجودة.", 404);
+    if (b.action === "mute") await pool.query("insert into chat_mutes(user_id,until) values ($1, now() + interval '24 hours') on conflict (user_id) do update set until=excluded.until", [o.rows[0].user_id]);
+    else await pool.query("delete from chat_mutes where user_id=$1", [o.rows[0].user_id]);
+    return Response.json({ ok: true });
+  }
   if (b.action === "clearFlags") {
     if (user.role !== "teacher" || !mid) return jsonError("غير مسموح.", 403);
     await pool.query("delete from chat_flags where message_id=$1", [mid]);
     return Response.json({ ok: true });
   }
   if (user.role !== "student" || !user.gradeId) return jsonError("الشات للطلاب اللي اختاروا صفهم.", 403);
+  const mu = await pool.query("select 1 from chat_mutes where user_id=$1 and until > now()", [user.id]);
+  if (mu.rows[0] && b.action !== "flag") return jsonError("المدرس كتم الشات عنك لمدة 24 ساعة.", 403);
   if (b.action === "flag") {
     if (!mid) return jsonError("رسالة غير صالحة.");
     const m = await pool.query("select 1 from chat_messages where id=$1 and grade_id=$2 and user_id<>$3", [mid, user.gradeId, user.id]);
@@ -74,6 +84,7 @@ export async function POST(request: Request) {
   const rate = await pool.query("select count(*)::int n, max(body) filter (where created_at > now() - interval '30 seconds') last_body from chat_messages where user_id=$1 and created_at > now() - interval '1 minute'", [user.id]);
   if (rate.rows[0].n >= PER_MINUTE) return jsonError("براحة شوية، استنى دقيقة وابعت تاني.", 429);
   if (text && rate.rows[0].last_body === text) return jsonError("الرسالة دي اتبعتت لسه.", 429);
+  if (Math.random() < 0.1) await pool.query("update chat_messages set image=null, body=case when body='' then '(صورة قديمة اتمسحت)' else body end where image is not null and created_at < now() - interval '30 days'");
   await pool.query("insert into chat_messages(grade_id,user_id,body,image) values ($1,$2,$3,$4)", [user.gradeId, user.id, text, img]);
   return Response.json({ ok: true });
 }
