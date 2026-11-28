@@ -36,7 +36,8 @@ export async function GET() {
       db.select({ id: attemptAnswers.id, attemptId: attemptAnswers.attemptId, questionId: attemptAnswers.questionId, value: attemptAnswers.value, prompt: questions.prompt, points: questions.points, studentName: users.name, examTitle: exams.title }).from(attemptAnswers).innerJoin(questions, eq(attemptAnswers.questionId, questions.id)).innerJoin(attempts, eq(attemptAnswers.attemptId, attempts.id)).innerJoin(users, eq(attempts.userId, users.id)).innerJoin(exams, eq(attempts.examId, exams.id)).where(and(eq(questions.kind, "text"), isNull(attemptAnswers.awarded))),
       db.select().from(adminLogs).orderBy(desc(adminLogs.createdAt)).limit(50),
     ]);
-    return Response.json({ grades: allGrades, terms: allTerms, units: allUnits, lectures: allLectures, exams: allExams, questions: allQuestions, students, subscriptions: allSubscriptions, codes, announcements: allAnnouncements, notifications: allNotifications, settings, assets: allAssets, pending, logs });
+    const aiGraded = (await pool.query("select aa.id, aa.value, aa.awarded, aa.feedback, q.prompt, q.points, u.name as \"studentName\", e.title as \"examTitle\" from attempt_answers aa join questions q on q.id=aa.question_id join exam_attempts a on a.id=aa.attempt_id join users u on u.id=a.user_id join exams e on e.id=a.exam_id where aa.feedback like '🤖%' order by a.submitted_at desc nulls last limit 30")).rows;
+    return Response.json({ aiGraded, grades: allGrades, terms: allTerms, units: allUnits, lectures: allLectures, exams: allExams, questions: allQuestions, students, subscriptions: allSubscriptions, codes, announcements: allAnnouncements, notifications: allNotifications, settings, assets: allAssets, pending, logs });
   } catch (error) { console.error("Admin load failed", error); return jsonError("تعذر تحميل البيانات.", 500); }
 }
 

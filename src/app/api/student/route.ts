@@ -1,3 +1,5 @@
+import { after } from "next/server";
+import { aiGradeAttempt } from "@/lib/grade";
 import { normalizePhone } from "@/lib/phone";
 import { ensureStudentCode, lockMap } from "@/lib/gating";
 import { and, desc, eq, gt, isNull, ne, or, sql } from "drizzle-orm";
@@ -6,6 +8,7 @@ import { activationCodes, announcements, assets, attemptAnswers, attempts, exams
 import { allowAttempt, canAccessGrade, digest, getCurrentUser, jsonError, sameOrigin } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
+export const maxDuration = 120;
 const idOk = (value: unknown): value is string => typeof value === "string" && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value);
 const text = (value: unknown, max = 1000) => typeof value === "string" ? value.trim().slice(0, max) : "";
 
@@ -149,7 +152,8 @@ export async function POST(request: Request) {
           }
           await tx.update(attempts).set({ submittedAt: new Date(), status: hasText ? "pending_review" : "graded", score, maxScore }).where(and(eq(attempts.id, attempt.id), eq(attempts.status, "in_progress")));
         });
-        return Response.json({ ok: true, message: hasText ? "تم التسليم. ستظهر الدرجة النهائية بعد مراجعة الإجابات المقالية." : "تم تسليم التقييم وتصحيحه.", status: hasText ? "pending_review" : "graded", score: hasText ? null : score, maxScore });
+        if (hasText) after(() => aiGradeAttempt(attempt.id));
+        return Response.json({ ok: true, message: hasText ? "تم التسليم. الذكاء الاصطناعي بيصحح الإجابات المقالية دلوقتي، والدرجة هتظهر خلال دقيقة، والمدرس بيراجعها." : "تم تسليم التقييم وتصحيحه.", status: hasText ? "pending_review" : "graded", score: hasText ? null : score, maxScore });
       }
       case "markRead": {
         if (!idOk(b.id)) return jsonError("الإشعار غير صالح.");
