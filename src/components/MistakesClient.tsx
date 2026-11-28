@@ -8,7 +8,7 @@ type Opt = { i: number; text: string };
 type Q = { key: string; src: string; topic: string; q: string; options: Opt[] };
 type Res = { correct: boolean; answer: number; why?: string };
 
-export default function MistakesClient() {
+export default function MistakesClient({ user }: { user: { name: string; role: string } }) {
   const [queue, setQueue] = useState<Q[] | null>(null);
   const [total, setTotal] = useState(0);
   const [firstTry, setFirstTry] = useState(0);
@@ -48,8 +48,8 @@ export default function MistakesClient() {
     setPick(null); setRes(null);
   }
 
-  return <><SiteHeader/><main className="container section pr-page">
-    <div className="dashboard-section-head"><h1 style={{ fontSize: 22, margin: 0 }}><BookX size={20} style={{ verticalAlign: "-3px" }}/> راجع أخطائي</h1>{queue && size > 0 && <span className="tag purple">{fixed} / {size}</span>}</div>
+  return <div className="app-page"><SiteHeader user={user as never}/><main className="app-container pr-page">
+    <div className="dashboard-section-head"><h1 style={{ fontSize: 22, margin: 0 }}><BookX size={20} style={{ verticalAlign: "-3px" }}/> راجع أخطائي</h1>{queue && size > 0 && <span dir="ltr" className="tag purple">{fixed} / {size}</span>}</div>
     {queue === null && <section className="panel"><p className="small">بجهّز أسئلتك...</p></section>}
     {err && !cur && <section className="panel"><p className="small">{err}</p></section>}
     {queue && !cur && !err && size === 0 && <section className="panel pr-end"><Trophy size={34}/><h2>مفيش أخطاء تراجعها</h2><p>كل اللي جاوبت عليه غلط اتصلّح أو لسه ماجاوبتش. حل امتحان أو تدرّب وارجع.</p><Link className="btn btn-primary" href="/practice">ابدأ تدريب</Link></section>}
@@ -64,5 +64,5 @@ export default function MistakesClient() {
       {err && <p className="small" style={{ color: "#f3a1aa" }}>{err}</p>}
       {res && <div className={"pr-fb " + (res.correct ? "ok" : "no")}><strong>{res.correct ? "برافو، صلّحتها!" : "لسه غلط، هتيجيلك تاني في الآخر."}</strong>{res.why && <p>{res.why}</p>}<button className="btn btn-primary" onClick={next}>{queue!.length === 1 && res.correct ? "إنهاء" : "التالي"} <ArrowLeft size={15}/></button></div>}
     </section>}
-  </main></>;
+  </main></div>;
 }

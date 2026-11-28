@@ -9,5 +9,5 @@ export default async function MistakesPage() {
   const user = await getCurrentUser();
   if (!user) redirect("/auth?mode=login");
   if (user.role !== "student") redirect("/");
-  return <MistakesClient/>;
+  return <MistakesClient user={{ name: user.name, role: user.role }}/>;
 }
