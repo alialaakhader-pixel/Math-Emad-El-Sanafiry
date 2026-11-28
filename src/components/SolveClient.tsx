@@ -24,7 +24,7 @@ function Answer({ text }: { text: string }) {
 
 export default function SolveClient({ user }: { user?: { name: string; role: string } }) {
   const [q, setQ] = useState(""); const [img, setImg] = useState(""); const [busy, setBusy] = useState(false);
-  const [res, setRes] = useState<{ answer: string; verified: boolean; checked?: boolean; corrected?: boolean; transcript?: string } | null>(null); const [err, setErr] = useState("");
+  const [res, setRes] = useState<{ answer: string; verified: boolean; checked?: boolean; corrected?: boolean; computed?: number; transcript?: string } | null>(null); const [err, setErr] = useState("");
   const [copied, setCopied] = useState(false); const [shared, setShared] = useState(false); const file = useRef<HTMLInputElement>(null);
   async function pick(f?: File) { if (!f) return; try { setImg(await shrink(f)); setErr(""); } catch { setErr("تعذر فتح الصورة. جرّب صورة تانية."); } }
   async function go(e?: React.FormEvent) {
@@ -52,7 +52,7 @@ export default function SolveClient({ user }: { user?: { name: string; role: str
     {busy && <div className="panel sv-card sv-busy" role="status"><div className="loading-spinner"/> بقرا المسألة وبحلّها خطوة خطوة...</div>}
     {err && <div className="message error" role="alert">{err}</div>}
     {res && <section className="panel sv-card sv-res" aria-live="polite">
-      <div className="sv-head">{res.verified ? <span className="sv-badge ok"><ShieldCheck size={14}/> حل محسوب بدقة</span> : <span className="sv-badge"><Sparkles size={14}/> {res.corrected ? "حل بالذكاء الاصطناعي بعد مراجعة وتصحيح" : res.checked ? "حل بالذكاء الاصطناعي وراجعته مرة تانية" : "حل بالذكاء الاصطناعي"}</span>}</div>
+      <div className="sv-head">{res.verified ? <span className="sv-badge ok"><ShieldCheck size={14}/> حل محسوب بدقة</span> : <span className="sv-badge"><Sparkles size={14}/> {res.corrected ? "حل بالذكاء الاصطناعي بعد مراجعة وتصحيح" : res.computed ? "حل بالذكاء الاصطناعي وراجعته بحساب فعلي" : res.checked ? "حل بالذكاء الاصطناعي وراجعته مرة تانية" : "حل بالذكاء الاصطناعي"}</span>}</div>
       {res.transcript && <div className="sv-read"><small>اللي قريته من الصورة:</small><p dir="auto">{res.transcript}</p><small>لو غلط، عدّل النص فوق واضغط حلّ تاني.</small></div>}
       <Answer text={res.answer}/>
       {!res.verified && <p className="sv-warn">الذكاء الاصطناعي ممكن يغلط. راجع الخطوات وتحقق من الإجابة قبل ما تعتمد عليها.</p>}

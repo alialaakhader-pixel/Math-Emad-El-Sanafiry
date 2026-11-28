@@ -54,6 +54,6 @@ export async function POST(request: Request) {
     }
     const out = await solveChecked(problem.slice(0, 3000));
     if (!out || !out.answer) return jsonError("تعذر الحل الآن. جرّب مرة ثانية بعد شوية.", 503);
-    return Response.json({ answer: out.answer, verified: false, checked: out.checked, corrected: out.corrected, transcript: transcript || undefined });
+    return Response.json({ answer: out.answer, verified: false, checked: out.checked, corrected: out.corrected, computed: out.computed, transcript: transcript || undefined });
   } catch (e) { console.error("Solver failed", e); return jsonError("حصل خطأ أثناء الحل. جرّب تاني.", 500); }
 }
