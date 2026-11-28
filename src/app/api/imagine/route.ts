@@ -60,6 +60,7 @@ export async function POST(request: Request) {
     const r = await workerPost("/images/generations", { prompt: en, width: w, height: h, imageData: face || undefined }, 55000);
     if (!r) return jsonError("استوديو الصور غير متاح الآن.", 503);
     const d = await r.json().catch(() => ({} as { image?: string; error?: { message?: string } }));
+    if (!r.ok && /4006|daily free allocation|neurons/i.test(d?.error?.message || "")) return jsonError("الحصة المجانية اليومية للذكاء الاصطناعي خلصت (الصور والحل والشرح بيشاركوا نفس الحصة). بترجع تلقائي الساعة 2 الصبح بتوقيت القاهرة.", 429);
     if (!r.ok || !d.image) return jsonError(d?.error?.message || "تعذر توليد الصورة الآن. جرّب وصف تاني بعد شوية.", r.status === 429 ? 429 : 503);
     return Response.json({ image: d.image, width: d.width || w, height: d.height || h });
   } catch { return jsonError("الصورة أخذت وقت أطول من المتوقع. جرّب تاني.", 504); }
