@@ -1,6 +1,22 @@
 import { pool } from "@/db";
 import { allowAttempt } from "@/lib/auth";
 import { chat, solveChecked } from "@/lib/ai";
+import { casSolve } from "@/lib/cas";
+import { casSolve2 } from "@/lib/cas2";
+import { groundSolve, formatSolution } from "@/lib/ground-solve";
+import { cacheGet, cacheSet } from "@/lib/aicache";
+
+const AR = "٠١٢٣٤٥٦٧٨٩";
+const nums = (t: string) => (t.replace(/[٠-٩]/g, d => String(AR.indexOf(d))).replace(/٫/g, ".").replace(/[\u202A-\u202E\u2066-\u2069]/g, "").match(/-?\d+(?:\.\d+)?(?:\/\d+)?/g) || []).map(x => { try { return x.includes("/") ? Number(x.split("/")[0]) / Number(x.split("/")[1]) : Number(x); } catch { return NaN; } }).filter(Number.isFinite);
+// Reference answers that code computed exactly (no AI call). Returns the text plus its final numbers.
+function codeReference(prompt: string): { text: string; finals: number[] } | null {
+  let text: string | null = null;
+  try { text = casSolve(prompt) ?? casSolve2(prompt); } catch { /* fall through */ }
+  if (!text) { try { const g = groundSolve(prompt); if (g && g.answers.length) text = formatSolution(g); } catch { /* none */ } }
+  if (!text) return null;
+  const tail = text.split("الحل النهائي").pop() || "";
+  const finals = nums(tail); return finals.length ? { text, finals } : null;
+}
 
 export const AI_TAG = "🤖 تصحيح الذكاء الاصطناعي: ";
 const GRADER = `أنت مصحّح امتحانات رياضيات عادل ومحدد. ستُعطى: السؤال، حلاً مرجعياً (تم حله ومراجعته)، وإجابة الطالب، والدرجة الكاملة.
@@ -17,7 +33,17 @@ const GRADER = `أنت مصحّح امتحانات رياضيات عادل وم�
 export async function gradeEssay(prompt: string, answer: string, points: number): Promise<{ score: number; feedback: string } | null> {
   if (!answer.trim() || answer.startsWith("file:")) return null;
   if (!await allowAttempt("grade-global-day", 400, 24 * 60 * 60 * 1000)) return null;
-  const ref = await solveChecked(prompt.slice(0, 2500));
+  // 1) reference computed by code: no AI call, and a matching final answer gets full marks without the AI grader.
+  const code = codeReference(prompt);
+  if (code) {
+    const mine = nums(answer);
+    if (code.finals.length <= 4 && code.finals.every(f => mine.some(v => Math.abs(v - f) <= 1e-6 * Math.max(1, Math.abs(f))))) return { score: points, feedback: "إجابتك النهائية صحيحة ومطابقة للحل المحسوب. ممتاز." };
+  }
+  // 2) otherwise one cached reference per question, so the solver runs once per question.
+  const rkey = "ref:" + prompt.slice(0, 2500).replace(/\s+/g, " ").toLowerCase();
+  let refText = code?.text || await cacheGet(rkey, 24 * 90).catch(() => null);
+  if (!refText) { const ref = await solveChecked(prompt.slice(0, 2500)); refText = ref?.answer || null; if (ref?.answer && ref.checked) await cacheSet(rkey, ref.answer).catch(() => {}); }
+  const ref = { answer: refText };
   const raw = await chat(GRADER, `السؤال:\n${prompt.slice(0, 2500)}\n\nالحل المرجعي:\n${(ref?.answer || "لا يوجد حل مرجعي").slice(0, 2500)}\n\nإجابة الطالب:\n${answer.slice(0, 3000)}\n\nالدرجة الكاملة: ${points}`, { max: 400, temp: 0, ms: 40000 });
   const m = /\{[\s\S]*\}/.exec(raw); if (!m) return null;
   try {

@@ -8,7 +8,7 @@ const math = create(all, {});
 const AD = "٠١٢٣٤٥٦٧٨٩";
 const FN = ["sin", "cos", "tan", "cot", "sec", "csc", "asin", "acos", "atan", "ln", "log", "sqrt", "exp", "abs", "pi", "e"];
 
-function norm(s: string) {
+export function norm(s: string) {
   return s.replace(/[٠-٩]/g, d => String(AD.indexOf(d))).replace(/٫/g, ".").replace(/[−–—]/g, "-").replace(/[×·]/g, "*").replace(/÷/g, "/")
     .replace(/(?<![\u0600-\u06FF])س(?![\u0600-\u06FF])/g, "x").replace(/²/g, "^2").replace(/³/g, "^3").replace(/√\s*\(/g, "sqrt(").replace(/√\s*([0-9x]+)/g, "sqrt($1)").replace(/π/g, "pi")
     .replace(/\bln\s*\(/g, "log(").replace(/[“”«»]/g, "").replace(/،/g, ",").replace(/؟/g, "?");
@@ -23,11 +23,11 @@ function candidates(q: string): string[] {
 }
 function clean(e: string) { return e.replace(/\s+/g, "").replace(/^[+*\/^=]+|[+\-*\/^=]+$/g, "").replace(/^f\(x\)=|^y=/i, ""); }
 
-function show(v: string) {
+export function show(v: string) {
   return "\u202D" + v.replace(/(?<![a-z])x(?![a-z])/g, "س").replace(/\^2/g, "²").replace(/\^3/g, "³").replace(/\^\(?(-?\d+)\)?/g, "^$1").replace(/(\d)\*س/g, "$1س").replace(/\*/g, "·").replace(/log\(/g, "ln(").replace(/\be\^/g, "e^") + "\u202C";
 }
-const near = (a: number, b: number) => Number.isFinite(a) && Number.isFinite(b) && Math.abs(a - b) <= 1e-5 * Math.max(1, Math.abs(a), Math.abs(b));
-const ev = (expr: string, x: number) => { const v = math.evaluate(expr.replace(/\^/g, "^").replace(/\blog\(/g, "log("), { x }); return typeof v === "number" ? v : NaN; };
+export const near = (a: number, b: number) => Number.isFinite(a) && Number.isFinite(b) && Math.abs(a - b) <= 1e-5 * Math.max(1, Math.abs(a), Math.abs(b));
+export const ev = (expr: string, x: number) => { const v = math.evaluate(expr.replace(/\^/g, "^").replace(/\blog\(/g, "log("), { x }); return typeof v === "number" ? v : NaN; };
 const samples = [0.37, 1.21, 2.13, 0.71, 1.67];
 
 function derivativeAnswer(expr: string): string | null {

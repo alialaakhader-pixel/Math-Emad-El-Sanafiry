@@ -1,6 +1,7 @@
 import { create, all } from "mathjs";
 import { formatSolution, groundSolve } from "@/lib/ground-solve";
 import { casSolve } from "@/lib/cas";
+import { casSolve2 } from "@/lib/cas2";
 import { cacheGet, cacheSet } from "@/lib/aicache";
 import { parseAI, solveChecked, workerPost } from "@/lib/ai";
 import { allowAttempt, getCurrentUser, jsonError, sameOrigin } from "@/lib/auth";
@@ -37,7 +38,7 @@ export async function POST(request: Request) {
   if (!image) {
     const a = arithmetic(question); if (a) return Response.json({ answer: a, verified: true });
     const g = groundSolve(question); if (g && g.answers.length) return Response.json({ answer: formatSolution(g), verified: true });
-    const c = casSolve(question); if (c) return Response.json({ answer: c, verified: true });
+    const c = casSolve(question) ?? casSolve2(question); if (c) return Response.json({ answer: c, verified: true });
     const hit = await cacheGet("solve:" + norm(question).toLowerCase().replace(/\s+/g, " "), 24 * 30).catch(() => null); if (hit) return Response.json({ answer: hit, verified: false, checked: true, cached: true });
   }
   if (!process.env.ELLOOL_AI_URL) return jsonError("الحلّال غير متاح الآن.", 503);
