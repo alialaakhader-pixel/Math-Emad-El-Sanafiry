@@ -15,8 +15,8 @@ export async function workerPost(path: string, payload: unknown, ms: number) {
   if (process.env.ELLOOL_AI_KEY) headers.Authorization = `Bearer ${process.env.ELLOOL_AI_KEY}`;
   return fetch(`${base}${path}`, { method: "POST", headers, body: JSON.stringify(payload), signal: AbortSignal.timeout(ms) });
 }
-export async function chat(system: string, user: string, opts: { max?: number; temp?: number; ms?: number } = {}): Promise<string> {
-  for (const model of [STRONG_MODEL, FALLBACK_MODEL]) {
+export async function chat(system: string, user: string, opts: { max?: number; temp?: number; ms?: number; cheap?: boolean } = {}): Promise<string> {
+  for (const model of opts.cheap ? [FALLBACK_MODEL, STRONG_MODEL] : [STRONG_MODEL, FALLBACK_MODEL]) {
     try {
       const payload = { model, messages: [{ role: "system", content: system }, { role: "user", content: user.slice(0, 6000) }], max_tokens: opts.max ?? 1500, temperature: opts.temp ?? 0.1, stream: false };
       let r = await workerPost("/chat/completions", payload, opts.ms ?? 40000);
@@ -60,7 +60,7 @@ const CHECKGEN = `أنت مولّد فحوصات حسابية. ستُعطى مس
 لا تكتب فحصاً لا تعرف تعبيره بدقة. لو لا يوجد ما يُفحص (برهان، شرح، مسألة فيزياء بدون معادلة واضحة) أعد {"checks":[]}.`;
 
 async function computeChecks(problem: string, solution: string) {
-  const raw = await chat(CHECKGEN, `المسألة: ${problem.slice(0, 1500)}\n\nالحل:\n${solution.slice(0, 2500)}`, { max: 700, temp: 0, ms: 30000 });
+  const raw = await chat(CHECKGEN, `المسألة: ${problem.slice(0, 1500)}\n\nالحل:\n${solution.slice(0, 2500)}`, { max: 700, temp: 0, ms: 30000, cheap: true });
   const m = /\{[\s\S]*\}/.exec(raw); if (!m) return { passed: 0, failed: [] as string[] };
   try { const j = JSON.parse(m[0]); return runChecks(Array.isArray(j.checks) ? (j.checks as Check[]) : []); } catch { return { passed: 0, failed: [] as string[] }; }
 }

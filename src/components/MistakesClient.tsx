@@ -20,6 +20,8 @@ export default function MistakesClient({ user }: { user: { name: string; role: s
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
   const [text, setText] = useState("");
+  const [expl, setExpl] = useState<string | null>(null);
+  const [explBusy, setExplBusy] = useState(false);
 
   const load = useCallback(async () => {
     setQueue(null); setPick(null); setRes(null); setFixed(0); setFirstTry(0); setWrongOnce(new Set()); setErr("");
@@ -51,8 +53,13 @@ export default function MistakesClient({ user }: { user: { name: string; role: s
       setRes({ correct: d.correct, answer: -1, why: d.feedback, score: d.score, points: d.points });
     } catch { setErr("النت وحش. جرّب تاني."); } finally { setBusy(false); }
   }
+  async function explain() {
+    if (!cur || explBusy) return; setExplBusy(true);
+    try { const r = await fetch("/api/ai/explain", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ key: cur.key }) }); const d = await r.json(); setExpl(r.ok ? d.text : d.error || "مقدرتش أشرح دلوقتي."); }
+    catch { setExpl("النت وحش. جرّب تاني."); } finally { setExplBusy(false); }
+  }
   function next() {
-    setText("");
+    setText(""); setExpl(null);
     if (!cur || !res || !queue) return;
     const rest = queue.slice(1);
     if (res.correct) { setFixed(f => f + 1); if (!wrongOnce.has(cur.key)) setFirstTry(f => f + 1); setQueue(rest); }
@@ -75,7 +82,7 @@ export default function MistakesClient({ user }: { user: { name: string; role: s
         return <button key={o.i} className={"pr-opt" + cls} disabled={!!res || busy} onClick={() => answer(o)}><span>{o.text}</span>{res && o.i === res.answer && <Check size={18}/>}{res && !res.correct && o.i === pick && <X size={18}/>}</button>;
       })}</div>
       {err && <p className="small" style={{ color: "#f3a1aa" }}>{err}</p>}
-      {res && <div className={"pr-fb " + (res.correct ? "ok" : "no")}><strong>{res.correct ? "برافو، صلّحتها!" : "لسه غلط، هتيجيلك تاني في الآخر."}{res.points ? ` (${res.score} من ${res.points})` : ""}</strong>{res.why && <p>{res.why}</p>}<button className="btn btn-primary" onClick={next}>{queue!.length === 1 && res.correct ? "إنهاء" : "التالي"} <ArrowLeft size={15}/></button></div>}
+      {res && <div className={"pr-fb " + (res.correct ? "ok" : "no")}><strong>{res.correct ? "برافو، صلّحتها!" : "لسه غلط، هتيجيلك تاني في الآخر."}{res.points ? ` (${res.score} من ${res.points})` : ""}</strong>{res.why && <p>{res.why}</p>}{cur.src !== "essay" && !res.correct && !expl && <button className="btn btn-outline" style={{ marginBottom: 10 }} disabled={explBusy} onClick={explain}>{explBusy ? "بشرحلك..." : "اشرحلي بالذكاء الاصطناعي"}</button>}{expl && <p style={{ whiteSpace: "pre-wrap" }}>{expl}</p>}<button className="btn btn-primary" onClick={next}>{queue!.length === 1 && res.correct ? "إنهاء" : "التالي"} <ArrowLeft size={15}/></button></div>}
     </section>}
   </main></div>;
 }
