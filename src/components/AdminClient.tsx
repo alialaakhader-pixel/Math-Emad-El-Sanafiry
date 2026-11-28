@@ -36,7 +36,7 @@ export default function AdminClient({ teacher }: { teacher: { name: string; emai
     catch (e) { setIsError(true); setMessage(e instanceof Error ? e.message : "تعذر تحميل البيانات."); }
   }
   const [flagN, setFlagN] = useState(0);
-  useEffect(() => { load(); fetch("/api/chat?flagged=1", { cache: "no-store" }).then(r => r.json()).then(d => setFlagN(d.flaggedTotal || 0)).catch(() => {}); }, []);
+  useEffect(() => { const h = location.hash.slice(1); if (h && ["subs", "exams"].includes(h)) setTab(h); load(); fetch("/api/chat?flagged=1", { cache: "no-store" }).then(r => r.json()).then(d => setFlagN(d.flaggedTotal || 0)).catch(() => {}); }, []);
   async function send(action: string, payload: Record<string, unknown> = {}) {
     setBusy(true); setMessage(""); setIsError(false);
     try { const res = await fetch("/api/admin", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action, ...payload }) }); const result = await res.json(); if (!res.ok) throw new Error(result.error || "تعذر الحفظ."); setMessage(result.message || "تم الحفظ."); if (result.code) setNewCode(result.code); await load(); return true; }

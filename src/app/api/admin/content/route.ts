@@ -1,4 +1,4 @@
-import { notifyGrade } from "@/lib/notify";
+import { ensureQuestionTopic, notifyGrade } from "@/lib/notify";
 import { eq, sql } from "drizzle-orm";
 import { db, pool } from "@/db";
 import { adminLogs, exams, grades, lectures, questions } from "@/db/schema";
@@ -79,7 +79,7 @@ export async function POST(request: Request) {
     if (action === "autoExam") {
       const topics = Array.isArray(b.topics) ? b.topics.map(t => txt(t, 120)).filter(Boolean).slice(0, 40) : [];
       const count = num(b.count, 10, 1, 60);
-      const { rows } = await pool.query("select q, options, correct from practice_questions where (grade_id is null or grade_id=$1) and ($2::text[] = '{}' or topic = any($2)) order by random() limit $3", [gradeId, topics, count]);
+      const { rows } = await pool.query("select q, options, correct, topic from practice_questions where (grade_id is null or grade_id=$1) and ($2::text[] = '{}' or topic = any($2)) order by random() limit $3", [gradeId, topics, count]);
       if (b.dryRun === true) return Response.json({ ok: true, count: rows.length, items: rows.map(r => ({ q: r.q, options: r.options, correct: r.correct })) });
       if (!rows.length) return jsonError("مفيش أسئلة في بنك التدريب للمواضيع دي.");
       const examId = await db.transaction(async tx => {
@@ -87,6 +87,8 @@ export async function POST(request: Request) {
         await tx.insert(questions).values(rows.map((r, i) => ({ examId: e.id, prompt: r.q as string, kind: "mcq" as const, options: r.options as string[], correctIndex: r.correct as number, points: 1, sortOrder: i })));
         return e.id;
       });
+      await ensureQuestionTopic();
+      for (const [i, r] of rows.entries()) if (r.topic) await pool.query("update questions set topic=$1 where exam_id=$2 and sort_order=$3", [r.topic, examId, i]);
       await log(user.id, "auto_exam", `${rows.length} questions`);
       if (published) await notifyGrade(gradeId, base.kind === "homework" ? "واجب جديد في صفك" : "امتحان جديد في صفك", `«${title}» اتنشر وجاهز تحله.`);
       return Response.json({ ok: true, examId, message: `تم تجميع امتحان من ${rows.length} سؤال${rows.length < count ? ` (البنك فيه ${rows.length} بس للمواضيع دي)` : ""}${published ? " ومنشور" : " كمسودة"}. تقدر تعدله من «الاختبارات والواجبات».` });

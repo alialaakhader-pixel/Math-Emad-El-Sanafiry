@@ -47,3 +47,9 @@ export function ensureChat() {
     create table if not exists chat_mutes(user_id uuid primary key references users(id) on delete cascade, until timestamptz not null)`).catch(e => { chatReady = null; throw e; });
   return chatReady;
 }
+
+let qtReady: Promise<unknown> | null = null;
+export function ensureQuestionTopic() {
+  qtReady ??= pool.query("alter table questions add column if not exists topic text").catch(e => { qtReady = null; throw e; });
+  return qtReady;
+}
