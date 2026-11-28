@@ -22,7 +22,7 @@ export async function GET(request: Request) {
   if (!gradeId && !(user.role === "teacher" && flaggedOnly)) return Response.json({ needGrade: true, messages: [] });
   const { rows } = await pool.query(
     `select * from (
-       select m.id, m.body, m.created_at, m.user_id, u.name, g.title grade, g.id grade_id,
+       select m.id, m.body, (m.image is not null) has_img, m.created_at, m.user_id, substr(md5(m.user_id::text),1,8) sid, u.name, g.title grade, g.id grade_id,
               (select count(*)::int from chat_flags f where f.message_id=m.id) flags,
               exists(select 1 from chat_flags f where f.message_id=m.id and f.user_id=$1) i_flagged
        from chat_messages m join users u on u.id=m.user_id left join grades g on g.id=m.grade_id
@@ -32,7 +32,7 @@ export async function GET(request: Request) {
   const fl = user.role === "teacher" ? (await pool.query("select count(*)::int n from chat_messages m where exists(select 1 from chat_flags f where f.message_id=m.id)")).rows[0].n : 0;
   return Response.json({
     grade: gt, flaggedTotal: fl, me: user.id,
-    messages: rows.map(r => ({ id: r.id, body: r.body, at: r.created_at, mine: r.user_id === user.id, name: user.role === "teacher" ? r.name : first(r.name), grade: r.grade, flags: user.role === "teacher" ? r.flags : undefined, iFlagged: r.i_flagged })),
+    messages: rows.map(r => ({ id: r.id, body: r.body, at: r.created_at, mine: r.user_id === user.id, img: r.has_img, sid: r.sid, name: user.role === "teacher" ? r.name : first(r.name), grade: r.grade, flags: user.role === "teacher" ? r.flags : undefined, iFlagged: r.i_flagged })),
   });
 }
 
@@ -63,10 +63,17 @@ export async function POST(request: Request) {
     return Response.json({ ok: true, message: "اتبعت بلاغ للمدرس." });
   }
   const text = typeof b.text === "string" ? b.text.replace(/\s+/g, " ").trim().slice(0, 400) : "";
-  if (!text) return jsonError("اكتب رسالة.");
+  let img: Buffer | null = null;
+  if (b.image !== undefined && b.image !== null) {
+    const m = typeof b.image === "string" ? /^data:image\/jpeg;base64,([A-Za-z0-9+/=]+)$/.exec(b.image) : null;
+    if (!m) return jsonError("الصورة لازم تكون JPEG.");
+    img = Buffer.from(m[1], "base64");
+    if (img.length < 200 || img.length > 700 * 1024 || img[0] !== 0xff || img[1] !== 0xd8 || img[2] !== 0xff) return jsonError("الصورة كبيرة أو مش صالحة.");
+  }
+  if (!text && !img) return jsonError("اكتب رسالة أو ابعت صورة.");
   const rate = await pool.query("select count(*)::int n, max(body) filter (where created_at > now() - interval '30 seconds') last_body from chat_messages where user_id=$1 and created_at > now() - interval '1 minute'", [user.id]);
   if (rate.rows[0].n >= PER_MINUTE) return jsonError("براحة شوية، استنى دقيقة وابعت تاني.", 429);
-  if (rate.rows[0].last_body === text) return jsonError("الرسالة دي اتبعتت لسه.", 429);
-  await pool.query("insert into chat_messages(grade_id,user_id,body) values ($1,$2,$3)", [user.gradeId, user.id, text]);
+  if (text && rate.rows[0].last_body === text) return jsonError("الرسالة دي اتبعتت لسه.", 429);
+  await pool.query("insert into chat_messages(grade_id,user_id,body,image) values ($1,$2,$3,$4)", [user.gradeId, user.id, text, img]);
   return Response.json({ ok: true });
 }

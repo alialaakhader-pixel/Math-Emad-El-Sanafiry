@@ -42,6 +42,7 @@ export function ensureChat() {
     message_id uuid not null references chat_messages(id) on delete cascade,
     user_id uuid not null references users(id) on delete cascade,
     created_at timestamptz not null default now(),
-    primary key(message_id,user_id))`).catch(e => { chatReady = null; throw e; });
+    primary key(message_id,user_id));
+    alter table chat_messages add column if not exists image bytea`).catch(e => { chatReady = null; throw e; });
   return chatReady;
 }
