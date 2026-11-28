@@ -1,5 +1,7 @@
 import { create, all } from "mathjs";
 import { formatSolution, groundSolve } from "@/lib/ground-solve";
+import { casSolve } from "@/lib/cas";
+import { cacheGet, cacheSet } from "@/lib/aicache";
 import { parseAI, solveChecked, workerPost } from "@/lib/ai";
 import { allowAttempt, getCurrentUser, jsonError, sameOrigin } from "@/lib/auth";
 
@@ -35,6 +37,8 @@ export async function POST(request: Request) {
   if (!image) {
     const a = arithmetic(question); if (a) return Response.json({ answer: a, verified: true });
     const g = groundSolve(question); if (g && g.answers.length) return Response.json({ answer: formatSolution(g), verified: true });
+    const c = casSolve(question); if (c) return Response.json({ answer: c, verified: true });
+    const hit = await cacheGet("solve:" + norm(question).toLowerCase().replace(/\s+/g, " "), 24 * 30).catch(() => null); if (hit) return Response.json({ answer: hit, verified: false, checked: true, cached: true });
   }
   if (!process.env.ELLOOL_AI_URL) return jsonError("الحلّال غير متاح الآن.", 503);
   if (image && !await allowAttempt(`solve-img:${who}`, user ? 10 : 5, 60 * 60 * 1000)) return jsonError("وصلت للحد المؤقت للصور. اكتب المسألة نصاً أو جرّب بعد شوية.", 429);
@@ -54,6 +58,7 @@ export async function POST(request: Request) {
     }
     const out = await solveChecked(problem.slice(0, 3000));
     if (!out || !out.answer) return jsonError("تعذر الحل الآن. جرّب مرة ثانية بعد شوية.", 503);
+    if (!image && out.checked) await cacheSet("solve:" + norm(question).toLowerCase().replace(/\s+/g, " "), out.answer).catch(() => {});
     return Response.json({ answer: out.answer, verified: false, checked: out.checked, corrected: out.corrected, computed: out.computed, transcript: transcript || undefined });
   } catch (e) { console.error("Solver failed", e); return jsonError("حصل خطأ أثناء الحل. جرّب تاني.", 500); }
 }
