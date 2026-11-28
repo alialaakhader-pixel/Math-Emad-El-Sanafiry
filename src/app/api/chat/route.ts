@@ -1,6 +1,6 @@
 import { pool } from "@/db";
 import { getCurrentUser, jsonError, sameOrigin } from "@/lib/auth";
-import { ensureChat } from "@/lib/notify";
+import { ensureChat, purgeOldChatImages } from "@/lib/notify";
 
 export const dynamic = "force-dynamic";
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -11,6 +11,7 @@ export async function GET(request: Request) {
   const user = await getCurrentUser();
   if (!user) return jsonError("سجّل دخولك.", 401);
   await ensureChat();
+  await purgeOldChatImages().catch(() => 0);
   const url = new URL(request.url);
   let gradeId: string | null = null;
   if (user.role === "teacher") {
@@ -84,7 +85,7 @@ export async function POST(request: Request) {
   const rate = await pool.query("select count(*)::int n, max(body) filter (where created_at > now() - interval '30 seconds') last_body from chat_messages where user_id=$1 and created_at > now() - interval '1 minute'", [user.id]);
   if (rate.rows[0].n >= PER_MINUTE) return jsonError("براحة شوية، استنى دقيقة وابعت تاني.", 429);
   if (text && rate.rows[0].last_body === text) return jsonError("الرسالة دي اتبعتت لسه.", 429);
-  if (Math.random() < 0.1) await pool.query("update chat_messages set image=null, body=case when body='' then '(صورة قديمة اتمسحت)' else body end where image is not null and created_at < now() - interval '30 days'");
+  await purgeOldChatImages();
   await pool.query("insert into chat_messages(grade_id,user_id,body,image) values ($1,$2,$3,$4)", [user.gradeId, user.id, text, img]);
   return Response.json({ ok: true });
 }

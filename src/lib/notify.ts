@@ -53,3 +53,11 @@ export function ensureQuestionTopic() {
   qtReady ??= pool.query("alter table questions add column if not exists topic text").catch(e => { qtReady = null; throw e; });
   return qtReady;
 }
+
+let lastPurge = 0;
+export async function purgeOldChatImages(force = false) {
+  if (!force && Date.now() - lastPurge < 10 * 60 * 1000) return 0;
+  lastPurge = Date.now();
+  const r = await pool.query("update chat_messages set image=null, body=case when body='' then '(صورة قديمة اتمسحت)' else body end where image is not null and created_at < now() - interval '30 days'");
+  return r.rowCount ?? 0;
+}

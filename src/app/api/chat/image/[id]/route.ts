@@ -9,7 +9,7 @@ export async function GET(_: Request, { params }: { params: Promise<{ id: string
   const { id } = await params;
   if (!/^[0-9a-f-]{36}$/i.test(id)) return jsonError("غير صالح.", 400);
   await ensureChat();
-  const { rows } = await pool.query("select image, grade_id from chat_messages where id=$1 and image is not null", [id]);
+  const { rows } = await pool.query("select image, grade_id from chat_messages where id=$1 and image is not null and created_at > now() - interval '30 days'", [id]);
   const r = rows[0];
   if (!r) return jsonError("مش موجودة.", 404);
   if (!(user.role === "teacher" || (user.role === "student" && user.gradeId === r.grade_id))) return jsonError("غير مسموح.", 403);
