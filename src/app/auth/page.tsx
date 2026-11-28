@@ -12,7 +12,7 @@ export default async function AuthPage({ searchParams }: { searchParams: Promise
   const params = await searchParams;
   if (params.teacher === "1") redirect("/auth/teacher");
   const user = await getCurrentUser();
-  if (user && params.mode !== "reset") redirect(user.role === "teacher" ? "/admin" : user.role === "staff" ? "/team" : "/dashboard");
+  if (user && params.mode !== "reset") redirect(user.role === "teacher" ? "/admin" : user.role === "staff" ? "/team" : user.gradeId ? "/dashboard" : "/welcome");
   const allGrades = await db.select({ id: grades.id, title: grades.title }).from(grades).where(eq(grades.published, true)).orderBy(grades.sortOrder);
   return <AuthClient grades={allGrades} googleAvailable={!!(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET)} mode={params.mode || "register"} token={params.token || ""} error={params.error || ""}/>;
 }

@@ -10,7 +10,7 @@ export default function PracticeWidget() {
   if (!d) return null;
   const s = d.stats; const pct = Math.min(100, Math.round(100 * (s.xp - s.from) / Math.max(1, s.to - s.from)));
   return <Link href="/practice" className="panel pr-widget">
-    <div className="pr-wtop"><strong>تدريب اليوم</strong><span className={"tag " + (s.doneToday ? "success" : "purple")}>{s.doneToday ? "تم هدف اليوم" : `${Math.min(s.todayAnswers, s.goal)} / ${s.goal}`}</span></div>
+    <div className="pr-wtop"><strong>تدريب اليوم</strong><span dir="ltr" className={"tag " + (s.doneToday ? "success" : "purple")}>{s.doneToday ? "تم هدف اليوم" : `${Math.min(s.todayAnswers, s.goal)} / ${s.goal}`}</span></div>
     <div className="pr-wrow"><span><b>{s.level}</b> المستوى</span><span><Zap size={13}/> {s.xp}</span><span className={s.streak ? "pr-hot" : ""}><Flame size={14}/> {s.streak} يوم</span></div>
     <div className="pr-bar"><i style={{ width: pct + "%" }}/></div>
     <small>{d.weak && d.weak.pct < 70 ? `التالي لك: ${d.weak.topic}` : "ابدأ جولة من ٥ أسئلة"} <ArrowLeft size={12}/></small>

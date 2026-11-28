@@ -3,7 +3,7 @@ import type { ReactNode } from "react";
 import "katex/dist/katex.min.css";
 import "./globals.css";
 import AnimatedBackground from "@/components/AnimatedBackground";
-import FloatingCalculator from "@/components/FloatingCalculator";
+import LazyCalculator from "@/components/LazyCalculator";
 
 export const metadata: Metadata = {
   title: { default: "منصة مهندس فارس عماد للرياضيات | Eng. Fares Emad Math Platform", template: "%s | منصة مهندس فارس عماد" },
@@ -16,5 +16,9 @@ export const metadata: Metadata = {
 export const viewport: Viewport = { width: "device-width", initialScale: 1, themeColor: "#090e20" };
 
 export default function RootLayout({ children }: { children: ReactNode }) {
-  return <html lang="ar" dir="rtl" data-theme="dark"><body><AnimatedBackground/>{children}<FloatingCalculator/></body></html>;
+  return <html lang="ar" dir="rtl" data-theme="dark"><head>
+    <link rel="preconnect" href="https://fonts.googleapis.com"/>
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous"/>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@300;400;500;600;700&family=Cairo:wght@800;900&display=swap"/>
+  </head><body><AnimatedBackground/>{children}<LazyCalculator/></body></html>;
 }

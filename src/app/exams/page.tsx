@@ -1,3 +1,4 @@
+import { ArrowUpLeft, ClipboardList } from "lucide-react";
 import Link from "next/link";
 import type { Metadata } from "next";
 import { and, asc, desc, eq } from "drizzle-orm";
@@ -25,7 +26,7 @@ export default async function ExamsPage() {
       {groups.length ? groups.map(({ g, items }) => <section className="panel" key={g.id} style={{ marginTop: 18 }}>
         <div className="dashboard-section-head"><h2>{g.title}</h2><span className="tag">{items.length}</span></div>
         {items.map(e => <Link className="student-card-link" key={e.id} href={user ? `/exam/${e.id}` : "/auth?mode=login"}><span><strong>{e.title}</strong><small>{e.kind === "homework" ? "واجب منزلي" : "امتحان"} · {e.durationMinutes} دقيقة</small></span></Link>)}
-      </section>) : <div className="empty-state" style={{ marginTop: 20 }}><h3>لا توجد امتحانات منشورة بعد</h3><p>سيظهر هنا كل امتحان ينشره المدرس.</p></div>}
+      </section>) : <div className="empty-state" style={{ marginTop: 20 }}><ClipboardList size={27}/><h3>لا توجد امتحانات منشورة بعد</h3><p>سيظهر هنا كل امتحان ينشره المدرس. وفي الوقت الحالي تقدر تدرّب نفسك أو تسأل عن أي مسألة.</p><div className="empty-actions"><Link className="btn btn-primary" href={user ? "/practice" : "/auth?mode=register"}>ابدأ تدريب <ArrowUpLeft size={15}/></Link><Link className="btn btn-outline" href="/solve">حلّال المسائل <ArrowUpLeft size={15}/></Link></div></div>}
     </main>
   </>;
 }

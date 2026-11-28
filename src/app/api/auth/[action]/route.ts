@@ -30,12 +30,13 @@ export async function POST(request: NextRequest, context: Context) {
       if (!parentPhone) return jsonError("أدخل رقم ولي الأمر صحيحاً (مثال: 01012345678).");
       const gradeId = safeText(body.gradeId, 36) || null;
       if (gradeId && !(await db.select({ id: grades.id }).from(grades).where(and(eq(grades.id, gradeId), eq(grades.published, true))).limit(1))[0]) return jsonError("الصف المختار غير متاح.");
+      if (!gradeId && (await db.select({ id: grades.id }).from(grades).where(eq(grades.published, true)).limit(1))[0]) return jsonError("اختر صفك الدراسي.");
       const existing = await db.select({ id: users.id }).from(users).where(eq(users.email, email)).limit(1);
       if (existing.length) return jsonError("هذا البريد مستخدم بالفعل.", 409);
       const [user] = await db.insert(users).values({ email, name, passwordHash: await hashPassword(password), gradeId, parentPhone }).returning({ id: users.id });
       await ensureStudentCode(user.id).catch(() => null);
       await createSession(user.id, request.headers.get("user-agent"));
-      return Response.json({ ok: true, redirect: "/dashboard" });
+      return Response.json({ ok: true, redirect: gradeId ? "/dashboard" : "/welcome" });
     }
     if (action === "login") {
       if (!await allowAttempt(`login:${ip}:${email}`, 8)) return jsonError("محاولات كثيرة. يرجى الانتظار قليلاً.", 429);
@@ -156,7 +157,7 @@ export async function GET(request: NextRequest, context: Context) {
         [account] = await db.insert(users).values({ email, name: safeText(info.name, 120) || email.split("@")[0], googleId: String(info.sub) }).returning();
       }
       await createSession(account.id, request.headers.get("user-agent"));
-      return NextResponse.redirect(new URL(account.role === "teacher" ? "/admin" : account.role === "staff" ? "/team" : "/dashboard", base));
+      return NextResponse.redirect(new URL(account.role === "teacher" ? "/admin" : account.role === "staff" ? "/team" : account.gradeId ? "/dashboard" : "/welcome", base));
     } catch (error) {
       console.error("Google OAuth failed", error);
       return NextResponse.redirect(new URL("/auth?error=google_failed", base));

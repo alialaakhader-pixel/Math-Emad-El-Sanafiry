@@ -61,6 +61,12 @@ export async function POST(request: Request) {
         await db.update(users).set({ parentPhone: ph }).where(eq(users.id, user.id));
         return Response.json({ ok: true, message: "تم حفظ رقم ولي الأمر." });
       }
+      case "setGrade": {
+        const gradeId = typeof b.gradeId === "string" ? b.gradeId : "";
+        if (!idOk(gradeId) || !(await db.select({ id: grades.id }).from(grades).where(and(eq(grades.id, gradeId), eq(grades.published, true))).limit(1))[0]) return jsonError("اختر صفاً متاحاً.");
+        await db.update(users).set({ gradeId }).where(eq(users.id, user.id));
+        return Response.json({ ok: true, message: "تم حفظ صفك الدراسي." });
+      }
       case "updateProfile": {
         const name = text(b.name, 120);
         if (name.length < 2) return jsonError("الاسم يجب أن يتكون من حرفين على الأقل.");
